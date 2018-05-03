@@ -1,0 +1,26 @@
+require: rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 2.5.0
+
+Style/Documentation:
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
+Metrics/LineLength:
+  Max: 122
+
+Naming/FileName:
+  Exclude:
+     - 'lib/icalendar-rrule.rb'
+
+
+
+
+# inherit_from: .rubocop_todo.yml
