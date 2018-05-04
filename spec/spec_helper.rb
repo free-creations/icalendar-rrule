@@ -3,7 +3,7 @@
 require 'bundler/setup'
 require 'icalendar/rrule'
 
-require 'support/fixture_helper'
+require 'spec_support/fixture_helper'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

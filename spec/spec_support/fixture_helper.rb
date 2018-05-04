@@ -7,7 +7,7 @@ module FixtureHelper
   # Reads a file and constructs a calendar-object from
   # the first calendar definition it finds in the given file.
   #
-  # @param [String] file_name the name of a file in `spec/support/fixtures/`
+  # @param [String] file_name the name of a file in `spec/spec_support/fixtures/`
   def self.parse_to_calendar(file_name)
     ics_path = File.expand_path "#{File.dirname(__FILE__)}/fixtures/#{file_name}"
     ics_string = File.read(ics_path)
@@ -23,7 +23,7 @@ module FixtureHelper
   # Reads a file and constructs an event-object from
   # the first *event* definition it finds in the first calendar of the given file.
   #
-  # @param [String] file_name the name of a file in `spec/support/fixtures/`
+  # @param [String] file_name the name of a file in `spec/spec_support/fixtures/`
   def self.parse_to_first_event(file_name)
     calendar = parse_to_calendar(file_name)
     events = Array(calendar.events)
@@ -38,7 +38,7 @@ module FixtureHelper
   # Reads a file and constructs an event-object from
   # the first *todo* definition it finds in the first calendar of the given file.
   #
-  # @param [String] file_name the name of a file in `spec/support/fixtures/`
+  # @param [String] file_name the name of a file in `spec/spec_support/fixtures/`
   def self.parse_to_first_task(file_name)
     calendar = parse_to_calendar(file_name)
     tasks = Array(calendar.todos)
