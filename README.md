@@ -43,10 +43,10 @@ end
 begin_time =   Date.new(2018, 4, 22)
 closing_time = Date.new(2018, 4, 29)
 
-rrule = calendar.scan(begin_time, closing_time)
+scan = calendar.scan(begin_time, closing_time)
 
 
-rrule.each do |occurrence|
+scan.each do |occurrence|
   puts "#{occurrence.occ_start.strftime('%a. %b. %d. %k:%M')}-#{occurrence.occ_end.strftime('%k:%M')}"
 end
 ```
