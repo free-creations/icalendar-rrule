@@ -6,14 +6,11 @@ According to the [RFC 5545](https://tools.ietf.org/html/rfc5545) specification,
 repeating events are represented by one single entry, the repetitions being shown by
 an attached _repeat rule_. Thus when we iterate through a calendar with, for example,
 a daily repeating event, 
-we'll only see one single event where for a month there would be around thirty events in reality.
-The _calendar rrule_ shows all these events by unrolling the _repeat rule_ for a 
-given time period.
+we'll only see one single event where for a month there would be many more events in reality.
 
-The _calendar rrule_ is so to say a kind of "virtual calendar" which shows all 
-events of the given ics-calendar, but _repeating events_ are expanded 
-into multiple _occurrences_ that can be processed like normal 
-calendar entries.
+The _icalendar-rrule gem_ patches an additional function called `scan` into the _iCalendar Gem_. 
+The _scan_ shows all events by unrolling the _repeat rule_ for a 
+given time period.
 
 ## Installation
 
@@ -63,6 +60,8 @@ Fri. Apr. 27.  8:30-17:00
 ```
 ## Used Libraries
 
+- [iCalendar Gem](https://github.com/icalendar/icalendar).
+- [Ice cube](https://github.com/seejohnrun/ice_cube)
 - **Active Support** see also 
   [How to Load Core Extensions](http://edgeguides.rubyonrails.org/active_support_core_extensions.html#how-to-load-core-extensions)
 
