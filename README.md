@@ -33,7 +33,7 @@ have a look at the [iCalendar gem](http://github.com/icalendar/icalendar).
 ```ruby
 require 'icalendar-rrule'
 
-using IcalendarWithView
+using Icalendar::Scannable
 
 calendar = Icalendar::Calendar.new
 calendar.event do |e|
@@ -46,7 +46,7 @@ end
 begin_time =   Date.new(2018, 4, 22)
 closing_time = Date.new(2018, 4, 29)
 
-rrule = calendar.rrule(begin_time, closing_time)
+rrule = calendar.scan(begin_time, closing_time)
 
 
 rrule.each do |occurrence|
@@ -78,60 +78,6 @@ Fri. Apr. 27.  8:30-17:00
   A newer fork is available here: [kdgm/ri_cal](https://github.com/kdgm/ri_cal)
 - [The deceptively complex world of calendar events and RRULEs](https://www.nylas.com/blog/calendar-events-rrules/).
   A Blog of Jennie Lees.
-
-# Shortcommings of Icalendar component
-1. RFC 5545 compatibility. 
-   - Default values for PRIORITY property. For example RFC 5545 says "Default is zero (i.e., undefined)."
-     But Icalendar returns nil as default...
-2. Inconsistent handling of multiple properties:
-    - `CATEGORIES:MEETING` => `["MEETING"]`
-    - `CATEGORIES:APPOINTMENT,EDUCATION` =>   `[["APPOINTMENT", "EDUCATION"]]`
-    -  `CATEGORIES:MEETING \  CATEGORIES:BIRTHDAY` => => `["MEETING", "BIRTHDAY"]`
-
-The RFC 5545 says:
-
-> Some properties defined in the iCalendar object can have multiple values. The general rule for encoding multi-valued items is to simply create a new content line for each value, including the property name. However, it should be noted that some properties support encoding multiple values in a single property by separating the values with a COMMA character. Individual property definitions should be consulted for determining whether a specific property allows multiple values and in which of these two forms. Multi-valued properties MUST NOT be used to specify multiple language variants of the same value. Calendar applications SHOULD display all values.
-
-Here is the code 
-from `icalendar/has_properties.rb` line 143
-```ruby
-        define_method "#{prop}=" do |value|
-          mapped = map_property_value value, klass, true
-          if mapped.is_a? Icalendar::Values::Array
-            instance_variable_set property_var, mapped.to_a.compact
-          else
-            instance_variable_set property_var, [mapped].compact
-          end
-        end
-    ...
-        define_method "append_#{prop}" do |value|
-          send(prop) << map_property_value(value, klass, true)
-        end
-```
-
-## Future Plans
-Replace  `iCalendar Recurrence` by  [Ice cube](http://seejohncode.com/ice_cube/).
-See [ice cube git](https://github.com/seejohnrun/ice_cube)
-
-### Renaming
-Project name:
-`icalendar-rrule`
-
-Name proposals for the rrule function:
-- proxy
-- delegate
-- scan
-- survey 
-- representative
-- delegate
-- outline
-- iterator
-- Enumerable
-- Range
-- all_in_range
-- entries
-- list of planned events
-- overview
 
 
 ## Contributing
