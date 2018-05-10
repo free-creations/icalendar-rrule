@@ -1,13 +1,9 @@
 # frozen_string_literal: true
 
+require 'ice_cube'
+require 'active_support/time_with_zone'
+
 module Icalendar
-  ##
-  # Monkey-patch a constant into class Icalendar::Component.
-  # (Unfortunately this cannot be done in a Refinement block)
-  class Component
-    # use NULL_DATE as default, when no better date is available.
-    NULL_DATE = Icalendar::Values::DateTime.new('00000101T000000Z')
-  end
   ##
   # Refines the  Icalendar::Component class by adding
   # some method to this class.

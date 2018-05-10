@@ -26,6 +26,7 @@ Gem::Specification.new do |gem_spec|
 
   gem_spec.add_dependency 'activesupport', '~> 5.1'
   gem_spec.add_dependency 'icalendar', '~> 2.4'
+  gem_spec.add_dependency 'ice_cube', '~> 0.16'
 
   gem_spec.add_development_dependency 'bundler', '~> 1.16'
   gem_spec.add_development_dependency 'rake', '~> 10.0'

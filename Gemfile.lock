@@ -4,6 +4,7 @@ PATH
     icalendar-rrule (0.1.0)
       activesupport (~> 5.1)
       icalendar (~> 2.4)
+      ice_cube (~> 0.16)
 
 GEM
   remote: https://rubygems.org/
@@ -19,6 +20,7 @@ GEM
     i18n (1.0.1)
       concurrent-ruby (~> 1.0)
     icalendar (2.4.1)
+    ice_cube (0.16.2)
     minitest (5.11.3)
     parallel (1.12.1)
     parser (2.5.1.0)

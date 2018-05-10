@@ -3,7 +3,7 @@
 require 'icalendar/rrule'
 
 RSpec.describe Icalendar::Scannable do
-  using Icalendar::Scannable
+  using described_class
   context 'when the underlying calendar uses timezones' do
     subject(:calendar_scan) do
       calendar.scan(begin_time, closing_time)
