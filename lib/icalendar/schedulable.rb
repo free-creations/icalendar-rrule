@@ -118,7 +118,7 @@ module Icalendar
           # on first invocation of this routine, we'll record the time-zone for future use.
           @schedule_time_zone ||= date_time.time_zone
 
-          # OK, if the timezone is also correct, we'll back the input object.
+          # OK, if the timezone is also correct, we'll give back the input object.
           result = if date_time.time_zone == @schedule_time_zone
                      date_time
                    else
