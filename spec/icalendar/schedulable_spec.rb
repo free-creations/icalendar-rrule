@@ -23,6 +23,9 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     it('has a method `#end_time`') do
       expect(event.end_time).to be_a(Icalendar::Values::DateTime)
     end
+    it('has a method `_rrules`') do
+      expect(event._rrules).to eq([])
+    end
   end
 
   describe Icalendar::Todo do

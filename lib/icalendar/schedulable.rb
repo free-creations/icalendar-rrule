@@ -84,8 +84,59 @@ module Icalendar
         end
       end
 
+      ##
+      # Make sure, that we can always query for a _rrule_ array.
+      # @return[array] an array of _ical repeat-rules_ (or an empty array
+      #                if no repeat-rules are defined for this component).
+      def _rrules
+        Array(rrule)
+      rescue StandardError
+        []
+      end
+
+      ##
+      # Creates a schedule for this event
+      # @return[IceCube::Schedule]
       def schedule
-        nil
+        schedule = IceCube::Schedule.new
+        schedule.start_time = _ensure_with_time_zone(start_time)
+        schedule.end_time = _ensure_with_time_zone(end_time)
+        raise NotImplementedError
+      end
+
+      ##
+      # Make sure, that the given date_time is of type
+      # `ActiveSupport::TimeWithZone`.  Make further sure, that all the times are defined in the same timezone.
+      # The timezone is arbitrarily chosen to be the first zone that this method encounters.
+      #
+      # @return[ActiveSupport::TimeWithZone] if the given object satisfies all conditions it is returned.
+      #                                     Otherwise the method attempts to "correct" the given Object.
+      #
+      def _ensure_with_time_zone(date_time) # rubocop:disable Metrics/MethodLength
+        if date_time.is_a?(ActiveSupport::TimeWithZone)
+          # OK, the class is correct
+          # on first invocation of this routine, we'll record the time-zone for future use.
+          @schedule_time_zone ||= date_time.time_zone
+
+          # OK, if the timezone is also correct, we'll back the input object.
+          result = if date_time.time_zone == @schedule_time_zone
+                     date_time
+                   else
+                     # we have to convert to the expected time zone
+                     date_time.in_time_zone(@schedule_time_zone)
+                   end
+
+          return result
+
+        elsif date_time.respond_to?(:to_time)
+          # The given class is not absolutely what we want, but at least it is some kind of Time-class.
+          # On first invocation of this routine, we'll have to settle on a time-zone.
+          @schedule_time_zone ||= ActiveSupport::TimeZone['UTC']
+          return @schedule_time_zone.at(date_time.to_time.to_i)
+        end
+        # Oops, the given object is unusable, we'll give back the NULL_DATE
+        @schedule_time_zone ||= ActiveSupport::TimeZone['UTC']
+        @schedule_time_zone.at(0)
       end
     end
   end
