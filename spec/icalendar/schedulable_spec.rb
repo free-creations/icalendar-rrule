@@ -29,48 +29,57 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
 
     let(:ruby_date) do
-      Date.new(2018, 12, 5)
+      Date.new(1970, 1, 1)
     end
 
-    specify '._extract_ical_time_zone' do # rubocop:disable RSpec/MultipleExpectations:
+    # rubocop:disable RSpec/MultipleExpectations
+    specify '._extract_ical_time_zone' do
       expect(component._extract_ical_time_zone(ical_date_with_tzid).name).to eq('America/New_York')
       expect(component._extract_ical_time_zone(ical_date_without_tzid)).to be_nil
       expect(component._extract_ical_time_zone(ruby_date)).to be_nil
     end
 
-    specify '._extract_timezone' do # rubocop:disable RSpec/MultipleExpectations:
+    specify '._extract_timezone' do
       expect(component._extract_timezone(ical_date_with_tzid).name).to eq('America/New_York')
       expect(component._extract_timezone(ical_date_without_tzid)).to be_nil
       expect(component._extract_timezone(time_with_zone_date).name).to eq('Hawaii')
       expect(component._extract_timezone(ruby_date)).to be_nil
       expect(component._extract_timezone(nil)).to be_nil
     end
-
     specify ' `._unique_timezone` of a Component (without dtstart, dtend and due) is UTC' do
       expect(component._unique_timezone.name).to eq('UTC')
     end
-    #     it('has a method `#start_time`') do
-    #       expect(event.start_time).to be_a(Icalendar::Values::DateTime)
-    #     end
-    #
-    #     it('has a method `#end_time`') do
-    #       expect(event.end_time).to be_a(Icalendar::Values::DateTime)
-    #     end
-    #     it('has a method `#_rrules`') do
-    #       expect(event._rrules).to eq([])
-    #     end
-    #     specify('#_to_time_with_zone returns an `ActiveSupport::TimeWithZone` for nil') do
-    #       expect(event._to_time_with_zone(nil)).to be_a(ActiveSupport::TimeWithZone)
-    #     end
-    #     specify('#_to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an ical_date') do
-    #       expect(event._to_time_with_zone(ical_date)).to be_a(ActiveSupport::TimeWithZone)
-    #     end
-    #     specify('#_extract_ical_time_zone returns the correct time zone for an ical_date') do
-    #       expect(event._extract_ical_time_zone(ical_date)).to eq('bla')
-    #     end
-    #     specify('#_to_time_with_zone returns the given time_with_zone') do
-    #       expect(event._to_time_with_zone(time_with_zone)).to equal(time_with_zone)
-    #     end
+    specify('`.start_time` always returns a `ActiveSupport::TimeWithZone`') do
+      expect(component.start_time).to be_a(ActiveSupport::TimeWithZone)
+    end
+    specify('`.end_time` always returns a `ActiveSupport::TimeWithZone`') do
+      expect(component.end_time).to be_a(ActiveSupport::TimeWithZone)
+    end
+    specify('`._rrules` always returns an array') do
+      expect(component._rrules).to eq([])
+    end
+
+    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for nil') do
+      expect(component._to_time_with_zone(nil)).to be_a(ActiveSupport::TimeWithZone)
+    end
+
+    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an ical_date_with_tzid') do
+      expect(component._to_time_with_zone(ical_date_with_tzid)).to be_a(ActiveSupport::TimeWithZone)
+      expect(component._to_time_with_zone(ical_date_with_tzid)).to eq(ical_date_with_tzid)
+    end
+    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an ical_date_without_tzid') do
+      expect(component._to_time_with_zone(ical_date_without_tzid)).to be_a(ActiveSupport::TimeWithZone)
+      expect(component._to_time_with_zone(ical_date_without_tzid)).to eq(ical_date_without_tzid)
+    end
+    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an time_with_zone_date') do
+      expect(component._to_time_with_zone(time_with_zone_date)).to be_a(ActiveSupport::TimeWithZone)
+      expect(component._to_time_with_zone(time_with_zone_date)).to eq(time_with_zone_date)
+    end
+    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for a ruby_date') do
+      expect(component._to_time_with_zone(ruby_date)).to be_a(ActiveSupport::TimeWithZone)
+      expect(component._to_time_with_zone(ruby_date)).to eq(ruby_date)
+    end
+    # rubocop:enable RSpec/MultipleExpectations
   end
 
   describe Icalendar::Todo do
@@ -81,8 +90,8 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
         return t
       end
 
-      specify('#start_time equals #due') { expect(due_task.start_time).to eq(due_task.due) }
-      specify('#end_time equals #due') { expect(due_task.end_time).to eq(due_task.due) }
+      specify('.start_time equals .due') { expect(due_task.start_time).to eq(due_task.due) }
+      specify('.end_time equals .due') { expect(due_task.end_time).to eq(due_task.due) }
     end
     context 'when due-time and duration are defined' do
       subject(:due_task) do
@@ -92,12 +101,12 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
         return t
       end
 
-      # note: dayligt saving time began on march 11. 2018
-      specify('the timezone of #due is what we expect') { expect(due_task.due.time_zone.name).to eq('America/New_York') }
-      specify('the time of #due is what we expect') { expect(due_task.due.to_s).to eq('2018-03-20 14:00:30 -0400') }
-      specify('#end_time equals #due') { expect(due_task.end_time).to eq(due_task.due) }
-      specify('#start_time is 15 days, 5 hours, and 20 seconds before due') do
-        expect(due_task.start_time.to_s).to eq('2018-03-05 09:00:10 -0500')
+      # note: daylight saving time began on march 11. 2018
+      specify('the timezone of .due is what we expect') { expect(due_task.due.time_zone.name).to eq('America/New_York') }
+      specify('the time of .due is what we expect') { expect(due_task.due.to_s).to eq('2018-03-20 14:00:30 -0400') }
+      specify('.end_time equals .due') { expect(due_task.end_time).to eq(due_task.due) }
+      specify('.start_time is 15 days, 5 hours, and 20 seconds before due(watch out daylight saving time)') do
+        expect(due_task.start_time.to_s).to eq('2018-03-05 08:00:10 -0500')
       end
     end
   end
