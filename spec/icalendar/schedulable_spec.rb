@@ -93,6 +93,17 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       specify('.start_time equals .due') { expect(due_task.start_time).to eq(due_task.due) }
       specify('.end_time equals .due') { expect(due_task.end_time).to eq(due_task.due) }
     end
+    context 'when only duration is defined' do
+      subject(:duration_task) do
+        t = described_class.new
+        t.duration = 'P0DT0H0M30S' # A duration of 30 seconds
+        return t
+      end
+
+      specify('.end_time minus .start_time equals duration') do
+        expect(duration_task.end_time - duration_task.start_time).to eq(30)
+      end
+    end
     context 'when due-time and duration are defined' do
       subject(:due_task) do
         t = described_class.new
@@ -102,8 +113,6 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       end
 
       # note: daylight saving time began on march 11. 2018
-      specify('the timezone of .due is what we expect') { expect(due_task.due.time_zone.name).to eq('America/New_York') }
-      specify('the time of .due is what we expect') { expect(due_task.due.to_s).to eq('2018-03-20 14:00:30 -0400') }
       specify('.end_time equals .due') { expect(due_task.end_time).to eq(due_task.due) }
       specify('.start_time is 15 days, 5 hours, and 20 seconds before due(watch out daylight saving time)') do
         expect(due_task.start_time.to_s).to eq('2018-03-05 08:00:10 -0500')
