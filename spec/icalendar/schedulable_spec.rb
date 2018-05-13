@@ -12,20 +12,65 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
   using Icalendar::Schedulable # <-- that's what we are testing here
 
   describe Icalendar::Component do
-    subject(:event) do
-      described_class.new('event_or_whatsoever')
+    subject(:component) do
+      described_class.new('event_todo_or_whatsoever')
     end
 
-    it('has a method `#start_time`') do
-      expect(event.start_time).to be_a(Icalendar::Values::DateTime)
+    let(:ical_date_with_tzid) do
+      Icalendar::Values::DateTime.new('20180101T100000', tzid: 'America/New_York')
     end
 
-    it('has a method `#end_time`') do
-      expect(event.end_time).to be_a(Icalendar::Values::DateTime)
+    let(:ical_date_without_tzid) do
+      Icalendar::Values::DateTime.new('20180509T100000')
     end
-    it('has a method `_rrules`') do
-      expect(event._rrules).to eq([])
+
+    let(:time_with_zone_date) do
+      ActiveSupport::TimeZone['Hawaii'].local(2018, 11, 5, 15, 30, 45)
     end
+
+    let(:ruby_date) do
+      Date.new(2018, 12, 5)
+    end
+
+    specify '._extract_ical_time_zone' do # rubocop:disable RSpec/MultipleExpectations:
+      expect(component._extract_ical_time_zone(ical_date_with_tzid).name).to eq('America/New_York')
+      expect(component._extract_ical_time_zone(ical_date_without_tzid)).to be_nil
+      expect(component._extract_ical_time_zone(ruby_date)).to be_nil
+    end
+
+    specify '._extract_timezone' do # rubocop:disable RSpec/MultipleExpectations:
+      expect(component._extract_timezone(ical_date_with_tzid).name).to eq('America/New_York')
+      expect(component._extract_timezone(ical_date_without_tzid)).to be_nil
+      expect(component._extract_timezone(time_with_zone_date).name).to eq('Hawaii')
+      expect(component._extract_timezone(ruby_date)).to be_nil
+      expect(component._extract_timezone(nil)).to be_nil
+    end
+
+    specify ' `._unique_timezone` of a Component (without dtstart, dtend and due) is UTC' do
+      expect(component._unique_timezone.name).to eq('UTC')
+    end
+    #     it('has a method `#start_time`') do
+    #       expect(event.start_time).to be_a(Icalendar::Values::DateTime)
+    #     end
+    #
+    #     it('has a method `#end_time`') do
+    #       expect(event.end_time).to be_a(Icalendar::Values::DateTime)
+    #     end
+    #     it('has a method `#_rrules`') do
+    #       expect(event._rrules).to eq([])
+    #     end
+    #     specify('#_to_time_with_zone returns an `ActiveSupport::TimeWithZone` for nil') do
+    #       expect(event._to_time_with_zone(nil)).to be_a(ActiveSupport::TimeWithZone)
+    #     end
+    #     specify('#_to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an ical_date') do
+    #       expect(event._to_time_with_zone(ical_date)).to be_a(ActiveSupport::TimeWithZone)
+    #     end
+    #     specify('#_extract_ical_time_zone returns the correct time zone for an ical_date') do
+    #       expect(event._extract_ical_time_zone(ical_date)).to eq('bla')
+    #     end
+    #     specify('#_to_time_with_zone returns the given time_with_zone') do
+    #       expect(event._to_time_with_zone(time_with_zone)).to equal(time_with_zone)
+    #     end
   end
 
   describe Icalendar::Todo do

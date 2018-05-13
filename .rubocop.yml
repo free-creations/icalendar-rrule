@@ -21,6 +21,10 @@ Naming/FileName:
      - 'lib/icalendar-rrule.rb'
 
 
+Metrics/ModuleLength:
+   Enabled: false
+
+
 
 
 # inherit_from: .rubocop_todo.yml
