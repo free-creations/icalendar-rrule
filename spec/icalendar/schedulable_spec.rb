@@ -47,7 +47,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._extract_timezone(nil)).to be_nil
     end
     specify ' `._unique_timezone` of a Component (without dtstart, dtend and due) is UTC' do
-      expect(component._unique_timezone.name).to eq('UTC')
+      expect(component._guess_timezone.name).to eq('UTC')
     end
     specify('`.start_time` always returns a `ActiveSupport::TimeWithZone`') do
       expect(component.start_time).to be_a(ActiveSupport::TimeWithZone)

@@ -116,7 +116,7 @@ module Icalendar
       #                                     Otherwise the method attempts to "correct" the given Object.
       #
       def _to_time_with_zone(date_time, timezone = nil) # rubocop:disable Metrics/MethodLength
-        timezone ||= _unique_timezone
+        timezone ||= _guess_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.
         date_time_value = if date_time.is_a?(Icalendar::Values::DateTime)
@@ -145,31 +145,52 @@ module Icalendar
       ##
       # Heuristic to determine the best timezone that shall be used in this component.
       # @return[ActiveSupport::TimeZone] the unique timezone used in this component
-      def _unique_timezone
+      def _guess_timezone
         # let's try sequentially, the first non-nil wins.
-        unique_timezone ||= _extract_timezone(_dtend)
-        unique_timezone ||= _extract_timezone(_dtstart)
-        unique_timezone ||= _extract_timezone(_due)
+        timezone ||= _extract_timezone(_dtend)
+        timezone ||= _extract_timezone(_dtstart)
+        timezone ||= _extract_timezone(_due)
 
         # as a last resort we'll use the Coordinated Universal Time (UTC).
-        unique_timezone || ActiveSupport::TimeZone['UTC']
+        timezone || ActiveSupport::TimeZone['UTC']
       end
 
       ##
-      # Get the timezone from the given object.
+      # Get the timezone from the given object trying different methods to find an indication in the object.
       # @param[Object] date_time an object from which we shall determine the time zone.
       # @return[ActiveSupport::TimeZone] the timezone used by the parameter or nil if no timezone has been set.
       def _extract_timezone(date_time)
-        return date_time.time_zone if date_time.is_a?(ActiveSupport::TimeWithZone)
-        return _extract_ical_time_zone(date_time) if date_time.is_a?(Icalendar::Value)
-        nil
+        timezone ||= _extract_act_sup_timezone(date_time) # is the given value already ActiveSupport::TimeWithZone?
+        timezone ||= _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
+        timezone || _extract_ical_time_zone(date_time) # try with ical parameter
       end
 
       ##
-      # Tries to find a time zone object that best matches the timezone-identifier given in the params of an ical value.
+      # Get the timezone from the given object, assuming it is an ActiveSupport::TimeWithZone.
+      # @param[Object] date_time an object from which we shall determine the time zone.
+      # @return[ActiveSupport::TimeZone] the timezone or nil if the operation could not be performed.
+      def _extract_act_sup_timezone(date_time)
+        return nil unless date_time.is_a?(ActiveSupport::TimeWithZone)
+        date_time.time_zone
+      end
+
+      ##
+      # Get the timezone from the given object, assuming it can be extracted from `ical_value.value.time_zone`
+      # @param[Object] ical_value an object from which we shall determine the time zone.
+      # @return[ActiveSupport::TimeZone] the timezone used by the parameter
+      #                                  or nil if the operation could not be performed.
+      def _extract_value_time_zone(ical_value)
+        return nil unless ical_value.is_a?(Icalendar::Value)
+        return nil unless ical_value.value.is_a?(ActiveSupport::TimeWithZone)
+        ical_value.value.time_zone
+      end
+
+      ##
+      # Get the timezone from the given object, assuming it can be extracted from ical params.
       # @param[Icalendar::Value] ical_value an ical value that (probably) supports a time zone identifier.
       # @return [ActiveSupport::TimeZone] the timezone referred to by the ical_value or nil.
       def _extract_ical_time_zone(ical_value)
+        return nil unless ical_value.is_a?(Icalendar::Value)
         return nil unless ical_value.respond_to?(:ical_params)
         ugly_tzid = ical_value.ical_params.fetch('tzid', nil)
         return nil if ugly_tzid.nil?
