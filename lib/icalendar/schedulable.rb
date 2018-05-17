@@ -12,7 +12,7 @@ module Icalendar
   # is a _Ruby core feature_ since Ruby 2.0
   #
   module Schedulable
-    NULL_TIME = 0 # The start of the Epoch (January 1, 1970 00:00 UTC).
+    NULL_TIME = 0 # The start of the Unix Epoch (January 1, 1970 00:00 UTC).
 
     SEC_MIN  = 60 # the number of seconds in a minute
     SEC_HOUR = 60 * SEC_MIN # the number of seconds in an hour
@@ -26,7 +26,7 @@ module Icalendar
       # Make sure, that we can always query for a _dtstart_ time.
       # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
       private def _dtstart
-        dtstart.value
+        dtstart
       rescue StandardError
         nil
       end
@@ -34,7 +34,7 @@ module Icalendar
       # Make sure, that we can always query for a _dtend_ time.
       # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
       private def _dtend
-        dtend.value
+        dtend
       rescue StandardError
         nil
       end
@@ -42,7 +42,7 @@ module Icalendar
       # Make sure, that we can always query for a _due_ date.
       # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
       private def _due
-        due.value
+        due
       rescue StandardError
         nil
       end
@@ -160,9 +160,9 @@ module Icalendar
       # @param[Object] date_time an object from which we shall determine the time zone.
       # @return[ActiveSupport::TimeZone] the timezone used by the parameter or nil if no timezone has been set.
       def _extract_timezone(date_time)
+        timezone ||= _extract_ical_time_zone(date_time) # try with ical parameter
         timezone ||= _extract_act_sup_timezone(date_time) # is the given value already ActiveSupport::TimeWithZone?
-        timezone ||= _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
-        timezone || _extract_ical_time_zone(date_time) # try with ical parameter
+        timezone || _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
       end
 
       ##
