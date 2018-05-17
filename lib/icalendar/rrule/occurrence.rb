@@ -17,6 +17,9 @@ module Icalendar
     #
     class Occurrence
       include Comparable
+      using Icalendar::Schedulable
+
+      # FIXME: Rewrite based on ActiveSupport::TimeWithZone
 
       ##
       # @return [Icalendar::Calendar] the calendar this occurrence is taken from.
@@ -49,9 +52,11 @@ module Icalendar
         raise ArgumentError, 'base_component has wrong class' unless base_component.is_a?(Icalendar::Component)
         @base_calendar  = base_calendar
         @base_component = base_component
-        @tzid           = tzid_from_component(base_component)
-        @occ_start      = time_into_zone(@tzid, occ_start)
-        @occ_end        = time_into_zone(@tzid, occ_end)
+        @tzid           = tzid_from_component(base_component) # FIXME: remove
+        @occ_start      = time_into_zone(@tzid, occ_start) # FIXME: remove
+        @occ_end        = time_into_zone(@tzid, occ_end) # FIXME: remove
+
+        @time_zone      = base_component.component_timezone
 
         super()
       end

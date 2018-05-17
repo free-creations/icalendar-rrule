@@ -47,7 +47,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._extract_timezone(nil)).to be_nil
     end
     specify ' `._unique_timezone` of a Component (without dtstart, dtend and due) is UTC' do
-      expect(component._guess_timezone.name).to eq('UTC')
+      expect(component.component_timezone.name).to eq('UTC')
     end
     specify('`.start_time` always returns a `ActiveSupport::TimeWithZone`') do
       expect(component.start_time).to be_a(ActiveSupport::TimeWithZone)
@@ -86,13 +86,20 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     context 'when only due-time is defined' do
       subject(:due_task) do
         t = described_class.new
-        t.due = Icalendar::Values::DateTime.new('20180327T123225Z')
+        t.due = Icalendar::Values::DateTime.new('20180327T123225', tzid: 'America/New_York')
         return t
       end
 
       specify('.start_time equals .due') { expect(due_task.start_time).to eq(due_task.due) }
       specify('.end_time equals .due') { expect(due_task.end_time).to eq(due_task.due) }
+      # rubocop:disable RSpec/MultipleExpectations
+      specify('.end_time .start_time are in the expected timezone') do
+        expect(due_task.end_time.time_zone.name).to eq('America/New_York')
+        expect(due_task.start_time.time_zone.name).to eq('America/New_York')
+      end
+      # rubocop:enable RSpec/MultipleExpectations
     end
+
     context 'when only duration is defined' do
       subject(:duration_task) do
         t = described_class.new
@@ -117,6 +124,19 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       specify('.start_time is 15 days, 5 hours, and 20 seconds before due(watch out daylight saving time)') do
         expect(due_task.start_time.to_s).to eq('2018-03-05 08:00:10 -0500')
       end
+    end
+
+    context 'when rrule is defined ...' do
+      subject(:complex_task) do
+        FixtureHelper.parse_to_first_task('complex_task.ics')
+      end
+
+      # rubocop:disable RSpec/MultipleExpectations
+      specify('._rrules is equal to ...') do
+        expect(complex_task._rrules.first).to eq('FREQ=YEARLY;INTERVAL=2;BYMINUTE=30;BYHOUR=8,9;BYDAY=SU;BYMONTH=1')
+        expect(complex_task._rrules[1]).to eq('FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR')
+      end
+      # rubocop:enable RSpec/MultipleExpectations
     end
   end
 end

@@ -24,7 +24,7 @@ module Icalendar
     refine Icalendar::Component do # rubocop:disable Metrics/BlockLength
       ##
       # Make sure, that we can always query for a _dtstart_ time.
-      # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
+      # @return[Icalendar::Value] a valid DateTime object or nil.
       private def _dtstart
         dtstart
       rescue StandardError
@@ -32,7 +32,7 @@ module Icalendar
       end
       ##
       # Make sure, that we can always query for a _dtend_ time.
-      # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
+      # @return[Icalendar::Value] a valid DateTime object or nil.
       private def _dtend
         dtend
       rescue StandardError
@@ -40,7 +40,7 @@ module Icalendar
       end
       ##
       # Make sure, that we can always query for a _due_ date.
-      # @return[ActiveSupport::TimeWithZone] a valid DateTime object or nil.
+      # @return[Icalendar::Value] a valid DateTime object or nil.
       private def _due
         due
       rescue StandardError
@@ -90,7 +90,7 @@ module Icalendar
       # @return[array] an array of _ical repeat-rules_ (or an empty array
       #                if no repeat-rules are defined for this component).
       def _rrules
-        Array(rrule)
+        Array(rrule).map(&:value_ical)
       rescue StandardError
         []
       end
@@ -100,15 +100,19 @@ module Icalendar
       # @return[IceCube::Schedule]
       def schedule
         schedule = IceCube::Schedule.new
-        schedule.start_time = _to_time_with_zone(start_time)
-        schedule.end_time = _to_time_with_zone(end_time)
-        raise NotImplementedError
+        schedule.start_time = start_time
+        schedule.end_time = end_time
+        _rrules.each do |rrule|
+          ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
+          schedule.add_recurrence_rule(ice_cube_recurrence_rule)
+        end
+        # FIXME: add exdate etc.
       end
 
       ##
       # Transform the given object into an object of type `ActiveSupport::TimeWithZone`.
       #
-      # Further, try to make sure, that all time-objects are defined in the same timezone.
+      # Further, try to make sure, that all time-objects of this component are defined in the same timezone.
       #
       # @param[Object] date_time an object that represents a time.
       # @param[ActiveSupport::TimeZone] timezone the timezone to be used. If nil, the timezone will be guessed.
@@ -116,7 +120,7 @@ module Icalendar
       #                                     Otherwise the method attempts to "correct" the given Object.
       #
       def _to_time_with_zone(date_time, timezone = nil) # rubocop:disable Metrics/MethodLength
-        timezone ||= _guess_timezone
+        timezone ||= component_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.
         date_time_value = if date_time.is_a?(Icalendar::Values::DateTime)
@@ -145,7 +149,7 @@ module Icalendar
       ##
       # Heuristic to determine the best timezone that shall be used in this component.
       # @return[ActiveSupport::TimeZone] the unique timezone used in this component
-      def _guess_timezone
+      def component_timezone
         # let's try sequentially, the first non-nil wins.
         timezone ||= _extract_timezone(_dtend)
         timezone ||= _extract_timezone(_dtstart)

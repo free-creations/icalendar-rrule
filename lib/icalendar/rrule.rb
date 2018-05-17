@@ -3,6 +3,6 @@
 require 'icalendar'
 require 'icalendar/scannable'
 
+require 'icalendar/schedulable'
 require 'icalendar/rrule/version'
 require 'icalendar/rrule/occurrence'
-require 'icalendar/schedulable'
