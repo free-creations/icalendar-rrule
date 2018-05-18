@@ -51,12 +51,13 @@ scan.each do |occurrence|
 end
 ```
 This will produce:
+
 ```
-Mon. Apr. 23.  8:30-17:00
-Tue. Apr. 24.  8:30-17:00
-Wed. Apr. 25.  8:30-17:00
-Thu. Apr. 26.  8:30-17:00
-Fri. Apr. 27.  8:30-17:00
+Mon. Apr. 23.  8:30-17:00 
+Tue. Apr. 24.  8:30-17:00 
+Wed. Apr. 25.  8:30-17:00 
+Thu. Apr. 26.  8:30-17:00 
+Fri. Apr. 27.  8:30-17:00 
 ```
 ## Used Libraries
 
