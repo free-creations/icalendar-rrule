@@ -79,6 +79,10 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._to_time_with_zone(ruby_date)).to be_a(ActiveSupport::TimeWithZone)
       expect(component._to_time_with_zone(ruby_date)).to eq(ruby_date)
     end
+
+    specify('.schedule returns an `IceCube::Schedule`') do
+      expect(component.schedule).to be_a(IceCube::Schedule)
+    end
     # rubocop:enable RSpec/MultipleExpectations
   end
 
