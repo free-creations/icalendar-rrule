@@ -2,14 +2,18 @@
 
 module Icalendar
   module Rrule
-    # A read only view on a component of an iCalendar, such
-    # as an event or a task.
+    ##
+    # An Occurrence represents the point of time where an event or any other component of an iCalendar happens.
+    #
+    # An component with a _repeat rule_ happens several times.
+    # Such an event is represented by a set of many Occurrence objects.
+    # All these occurrence objects refer to the same component called the base_component.
     #
     # The base_component can be one of the following:
-    # - event
-    # - todo
+    # - Icalendar::Event
+    # - Icalendar::Todo
     #
-    # The Occurrence delegates the reading of attributes to its underlying
+    # The Occurrence delegates to its underlying
     # base_component.
     #
     # Further it maintains a _start time_ and an _end time_ for the occurrence to happen.
@@ -19,8 +23,6 @@ module Icalendar
       include Comparable
       using Icalendar::Schedulable
 
-      # FIXME: Rewrite based on ActiveSupport::TimeWithZone
-
       ##
       # @return [Icalendar::Calendar] the calendar this occurrence is taken from.
       attr_reader :base_calendar
@@ -28,35 +30,34 @@ module Icalendar
       # @return [Icalendar::Component] the calendar-component (an event or a task) this occurrence refers to.
       attr_reader :base_component
       ##
-      # @return [Icalendar::Values::DateTime] the start of this occurrence.
-      attr_reader :occ_start
+      # @return [ActiveSupport::TimeWithZone] the start of this occurrence.
+      attr_reader :start_time
       ##
-      # @return [Icalendar::Values::DateTime] the end of this occurrence.
-      attr_reader :occ_end
+      # @return [ActiveSupport::TimeWithZone] the end of this occurrence.
+      attr_reader :end_time
       ##
-      # @return[String] the time-zone that `occ_start` and `occ_end` refer to.
-      attr_reader :tzid
+
       ##
       # Create a new Occurrence instance.
       #
       # @param [Icalendar::Calendar] base_calendar the calendar that holds the component.
       # @param [Icalendar::Component] base_component the underlying calendar-component.
-      # @param [Time] occ_start the start-time of this occurrence
+      # @param [ActiveSupport::TimeWithZone] start_time the time when this occurrence starts.
       #                   (might be different to the start time of the base_component)
-      # @param [Time]  occ_end the end-time  of this occurrence
+      # @param [ActiveSupport::TimeWithZone]  end_time the time when this occurrence starts.
       #                    (might be different to the end time of the base_component)
       #
-      def initialize(base_calendar, base_component, occ_start, occ_end)
-        raise ArgumentError, 'base_calendar has wrong class' \
-          unless base_calendar.nil? || base_calendar.is_a?(Icalendar::Calendar)
+      def initialize(base_calendar, base_component, start_time, end_time)
+        raise ArgumentError, 'base_calendar has wrong class' unless
+            base_calendar.nil? || base_calendar.is_a?(Icalendar::Calendar)
         raise ArgumentError, 'base_component has wrong class' unless base_component.is_a?(Icalendar::Component)
+        raise ArgumentError, 'start_time has wrong class' unless start_time.is_a?(ActiveSupport::TimeWithZone)
+        raise ArgumentError, 'end_time has wrong class' unless end_time.is_a?(ActiveSupport::TimeWithZone)
+
         @base_calendar  = base_calendar
         @base_component = base_component
-        @tzid           = tzid_from_component(base_component) # FIXME: remove
-        @occ_start      = time_into_zone(@tzid, occ_start) # FIXME: remove
-        @occ_end        = time_into_zone(@tzid, occ_end) # FIXME: remove
-
-        @time_zone      = base_component.component_timezone
+        @start_time     = start_time
+        @end_time       = end_time
 
         super()
       end
@@ -113,13 +114,13 @@ module Icalendar
       ##
       # Compares this occurrence to the other.
       # Comparison is on:
-      # 1. occ_start
-      # 2. occ_end
+      # 1. @start_time
+      # 2. @end_time
       def <=>(other)
-        return nil unless other.respond_to? :occ_start
-        start_compare = @occ_start.to_datetime <=> other.occ_start.to_datetime
+        return nil unless other.respond_to? :start_time
+        start_compare = @start_time.to_datetime <=> other.start_time.to_datetime
         return start_compare unless start_compare.zero?
-        @occ_end.to_datetime <=> other.occ_end.to_datetime
+        @end_time.to_datetime <=> other.end_time.to_datetime
       end
     end
   end

@@ -45,11 +45,11 @@ RSpec.describe Icalendar::Scannable do
     #     end
     #
     #     it "starts at the same time as its underlying event (eight o'clock in the morning)" do
-    #       expect(occurrence.occ_start.strftime('%H:%M')).to eq('10:00')
+    #       expect(occurrence.@start_time.strftime('%H:%M')).to eq('10:00')
     #     end
     #
     #     it "ends at the same time as its underlying event (five o'clock in the afternoon)" do
-    #       expect(occurrence.occ_end.strftime('%H:%M')).to eq('11:00')
+    #       expect(occurrence.@end_time.strftime('%H:%M')).to eq('11:00')
     #     end
     #   end
     # end
@@ -171,12 +171,12 @@ RSpec.describe Icalendar::Scannable do
   #     expect(calendar.scan(begin_time, end_time, %i[todos]).size).to eq(30)
   #   end
   #   specify 'the first of these occurrences is on first of April  at noon' do
-  #     expect(calendar.scan(begin_time, end_time, %i[todos]).first.occ_start).to  \
+  #     expect(calendar.scan(begin_time, end_time, %i[todos]).first.@start_time).to  \
   #       eq(Icalendar::Values::DateTime.new('20180401T120000', tzid: 'Europe/Berlin'))
   #   end
   #
   #   specify 'the last of these occurrences is on April 30th at noon' do
-  #     expect(calendar.scan(begin_time, end_time, %i[todos])[-1].occ_start).to  \
+  #     expect(calendar.scan(begin_time, end_time, %i[todos])[-1].@start_time).to  \
   #       eq(Icalendar::Values::DateTime.new('20180430T120000', tzid: 'Europe/Berlin'))
   #   end
   #   it 'returns 30 task occurrences when called with `:events` and `:todos` parameter' do

@@ -27,12 +27,12 @@ RSpec.describe Icalendar::Rrule::Occurrence do
         )
       end
 
-      it 'has a property `occ_start` which acts like a Time object' do
-        expect(component_view.occ_start).to be_acts_like_time
+      it 'has a property `@start_time` which acts like a Time object' do
+        expect(component_view.start_time).to be_acts_like_time
       end
 
-      it 'has a property `occ_end`  which acts like a Time object' do
-        expect(component_view.occ_end).to be_acts_like_time
+      it 'has a property `@end_time`  which acts like a Time object' do
+        expect(component_view.end_time).to be_acts_like_time
       end
 
       it 'is read-only, i.e. does not allow to set any of its attributes' do
@@ -64,7 +64,7 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       specify 'unset *custom properties* have the default value `[]`' do
         expect(component_view.x_foo).to eq([])
       end
-      it 'is always smaller than a later component (its natural sort order is `occ_start`)' do
+      it 'is always smaller than a later component (its natural sort order is `@start_time`)' do
         is_expected.to be < later_component
       end
     end

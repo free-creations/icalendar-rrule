@@ -127,7 +127,7 @@ module Icalendar
           ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
         end
-        # FIXME: add exdate etc.
+        # FIXME: treat exdate etc.
         schedule
       end
 
