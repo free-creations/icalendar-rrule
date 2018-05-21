@@ -24,6 +24,13 @@ Naming/FileName:
 Metrics/ModuleLength:
    Enabled: false
 
+Style/DocumentationMethod:
+  Description: 'Public methods.'
+  Enabled: true
+  Exclude:
+    - 'spec/**/*'
+    - 'test/**/*'
+
 
 
 

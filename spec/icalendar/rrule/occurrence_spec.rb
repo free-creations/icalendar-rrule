@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 require 'icalendar/rrule' # the gem under test
-require 'date' # for parse method
 
 RSpec.describe Icalendar::Rrule::Occurrence do
+  zone = ActiveSupport::TimeZone['Europe/Busingen']
+
   # we'll run all examples with different kind of base components.
   # This could also have been done with
   # [shared examples](https://relishapp.com/rspec/rspec-core/v/3-7/docs/example-groups/shared-examples)
@@ -11,12 +12,13 @@ RSpec.describe Icalendar::Rrule::Occurrence do
    FixtureHelper.parse_to_first_task('daily_task.ics')].each do |base_component|
 
     context 'when the `base component` is an ' + base_component.class.name do
-      subject(:component_view) { described_class.new(nil, base_component, time_1, time_2) }
+      subject(:occurrence) { described_class.new(nil, base_component, time_1, time_2) }
 
-      let(:time_1) { Date.parse('2018-04-01') }
-      let(:time_2) { Date.parse('2018-04-02') }
-      let(:time_3) { Date.parse('2018-04-03') }
-      let(:time_4) { Date.parse('2018-04-04') }
+      let(:time_1) { zone.parse('2018-04-01 15:30:45') }
+      let(:time_2) { zone.parse('2018-04-02 15:30:45') }
+      let(:time_3) { zone.parse('2018-04-03 15:30:45') }
+      let(:time_4) { zone.parse('2018-04-04 15:30:45') }
+
       let(:later_component) { described_class.new(nil, base_component, time_3, time_4) }
 
       it 'has the same attributes as its base component' do
@@ -28,18 +30,18 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       end
 
       it 'has a property `@start_time` which acts like a Time object' do
-        expect(component_view.start_time).to be_acts_like_time
+        expect(occurrence.start_time).to be_a(ActiveSupport::TimeWithZone)
       end
 
       it 'has a property `@end_time`  which acts like a Time object' do
-        expect(component_view.end_time).to be_acts_like_time
+        expect(occurrence.end_time).to be_a(ActiveSupport::TimeWithZone)
       end
 
       it 'is read-only, i.e. does not allow to set any of its attributes' do
-        expect { component_view.uid = 'abc' }.to raise_error(NoMethodError)
+        expect { occurrence.uid = 'abc' }.to raise_error(NoMethodError)
       end
 
-      it 'reports to `respond_to` any attribute it has inherited from its base component' do
+      it 'reports to `respond_to` any attribute it has "virtually inherited" from its base component' do
         is_expected.to respond_to(:uid)
       end
 
@@ -52,17 +54,17 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       it 'responds to *optional properties* for example `contact`' do
         is_expected.to respond_to(:contact)
       end
-      specify 'unset *optional single properties* have the default value `nil`' do
-        expect(component_view.location).to be_nil
+      specify 'un-initialised *optional single properties* have the default value `nil`' do
+        expect(occurrence.location).to be_nil
       end
-      specify 'unset *optional (multiple) properties* have the default value `[]`' do
-        expect(component_view.contact).to eq([])
+      specify 'un-initialised *optional (multiple) properties* have the default value `[]`' do
+        expect(occurrence.contact).to eq([])
       end
       it 'responds to *custom properties* for example `x_foo`' do
         is_expected.to respond_to(:x_foo)
       end
-      specify 'unset *custom properties* have the default value `[]`' do
-        expect(component_view.x_foo).to eq([])
+      specify 'un-initialised *custom properties* have the default value `[]`' do
+        expect(occurrence.x_foo).to eq([])
       end
       it 'is always smaller than a later component (its natural sort order is `@start_time`)' do
         is_expected.to be < later_component

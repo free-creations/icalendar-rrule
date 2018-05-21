@@ -47,12 +47,15 @@ module Icalendar
       # @param [ActiveSupport::TimeWithZone]  end_time the time when this occurrence starts.
       #                    (might be different to the end time of the base_component)
       #
-      def initialize(base_calendar, base_component, start_time, end_time)
-        raise ArgumentError, 'base_calendar has wrong class' unless
+      def initialize(base_calendar, base_component, start_time, end_time) # rubocop:disable Metrics/MethodLength
+        raise ArgumentError, "'base_calendar' not of class 'Icalendar::Calendar'" unless
             base_calendar.nil? || base_calendar.is_a?(Icalendar::Calendar)
-        raise ArgumentError, 'base_component has wrong class' unless base_component.is_a?(Icalendar::Component)
-        raise ArgumentError, 'start_time has wrong class' unless start_time.is_a?(ActiveSupport::TimeWithZone)
-        raise ArgumentError, 'end_time has wrong class' unless end_time.is_a?(ActiveSupport::TimeWithZone)
+        raise ArgumentError, "'base_component' not of class 'Icalendar::Component'" unless
+            base_component.is_a?(Icalendar::Component)
+        raise ArgumentError, "'start_time' not of class 'ActiveSupport::TimeWithZone'" unless
+            start_time.is_a?(ActiveSupport::TimeWithZone)
+        raise ArgumentError, "'end_time' not of class 'ActiveSupport::TimeWithZone'" unless
+            end_time.is_a?(ActiveSupport::TimeWithZone)
 
         @base_calendar  = base_calendar
         @base_component = base_component
@@ -62,35 +65,14 @@ module Icalendar
         super()
       end
 
-      def time_into_zone(zone, time)
-        zoned_time = time.in_time_zone(zone)
-        Icalendar::Values::DateTime.new(zoned_time, tzid: zone)
-      end
-
-      def tzid_from_component(component)
-        return tzid_from_dtstart(component) unless tzid_from_dtstart(component).nil?
-        return tzid_from_due(component) unless tzid_from_due(component).nil?
-        'UTC'
-      end
-
-      private def tzid_from_dtstart(component)
-        return nil unless component.respond_to? :dtstart
-        return nil if component.dtstart.nil?
-        ugly_tzid = component.dtstart.ical_params.fetch('tzid', nil)
-        return nil if ugly_tzid.nil?
-
-        Array(ugly_tzid).first.to_s.gsub(/^(["'])|(["'])$/, '')
-      end
-
-      private def tzid_from_due(component)
-        return nil unless component.respond_to? :due
-        return nil if component.due.nil?
-        ugly_tzid = component.due.ical_params.fetch('tzid', nil)
-        return nil if ugly_tzid.nil?
-
-        Array(ugly_tzid).first.to_s.gsub(/^(["'])|(["'])$/, '')
-      end
-
+      ##
+      # Invoked by Ruby when the Occurrence-object is sent a message it cannot handle.
+      #
+      # All calls will be  delegated all to the _base component_, except setter requests.
+      #
+      # @param [String] method_name  the symbol for the method called
+      # @param [*object] arguments arguments that were passed to the method.
+      # @param [] block
       def method_missing(method_name, *arguments, &block)
         if method_name.to_s[-1, 1] == '='
           # do not allow for setter methods
@@ -101,6 +83,12 @@ module Icalendar
         end
       end
 
+      ##
+      # Returns true if the Occurrence can respond to the given method, that is, the
+      # base component responds to the given method.
+      #
+      # @param [String] method_name  the symbol for the method called
+      # @param include_private
       def respond_to_missing?(method_name, include_private = false)
         if method_name.to_s[-1, 1] == '='
           # do not allow to set attributes
