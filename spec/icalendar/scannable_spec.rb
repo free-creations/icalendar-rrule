@@ -29,9 +29,9 @@ RSpec.describe Icalendar::Scannable do
     let(:begin_time) { Date.new(2018, 1, 1) }
     let(:closing_time) { Date.new(2019, 1, 1) }
 
-    # it 'is has over 100 entries within the test time elapse' do
-    #   expect(calendar_scan.size).to be > 100
-    # end
+    it 'is has over 100 entries within the test time elapse' do
+      expect(calendar_scan.size).to be > 100
+    end
     #
     # [1, 60, -1].each do |i| # lets check for several entries one beginning and in middle of the year
     #

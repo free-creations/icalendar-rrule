@@ -86,6 +86,16 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     # rubocop:enable RSpec/MultipleExpectations
   end
 
+  describe Icalendar::Event do
+    subject(:event) do
+      described_class.new
+    end
+
+    specify('.schedule returns an `IceCube::Schedule`') do
+      expect(event.schedule).to be_a(IceCube::Schedule)
+    end
+  end
+
   describe Icalendar::Todo do
     context 'when only due-time is defined' do
       subject(:due_task) do

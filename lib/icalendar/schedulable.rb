@@ -6,7 +6,7 @@ require 'active_support/time_with_zone'
 module Icalendar
   ##
   # Refines the  Icalendar::Component class by adding
-  # some method to this class.
+  # an interface to the IceCube Gem  into the Icalendar::Component-class.
   #
   # __Note:__ [Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)
   # is a _Ruby core feature_ since Ruby 2.0
@@ -141,7 +141,7 @@ module Icalendar
       # @return [ActiveSupport::TimeWithZone] if the given object satisfies all conditions it is returned unchanged.
       #                                     Otherwise the method attempts to "correct" the given Object.
       #
-      def _to_time_with_zone(date_time, timezone = nil) # rubocop:disable Metrics/MethodLength
+      def _to_time_with_zone(date_time, timezone = nil)
         timezone ||= component_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.

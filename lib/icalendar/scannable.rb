@@ -12,21 +12,56 @@ module Icalendar
     ##
     # Provides _mixin_ methods for the
     # Icalendar::Calendar class
-    refine Icalendar::Calendar do
+    refine Icalendar::Calendar do # rubocop:disable Metrics/BlockLength
+      using Icalendar::Schedulable
       ##
       # @param[date_time] begin_time
       # @param[date_time] closing_time
       # @param [Set] component_types a list of components that shall be retrieved these can be
       # - :events
       # - :todos
-      # Note: `:journals` and `:freebusys` currently not implemented.
+      # Note: `:journals` and `:freebusys` are currently not tested.
       #
       # @return [Array] all occurrences between begin_time and closing_time
       def scan(begin_time, closing_time, component_types = Set[:events])
-        @begin_time = begin_time
-        @closing_time = closing_time
-        @component_types = component_types
-        []
+        component_types = component_types.to_set
+        result = []
+        component_types.each do |component_type|
+          result += _occurrences_between(_components(component_type), _to_time(begin_time), _to_time(closing_time))
+        end
+        result ||= [] # stop RubyMine to complain about uninitialized result.
+        result.sort!
+      end
+
+      private def _to_time(date_or_time)
+        return date_or_time if date_or_time.acts_like?(:time)
+        return date_or_time.to_datetime.to_time if date_or_time.acts_like?(:date)
+        raise ArgumentError, "Cannot interpret #{date_or_time} as Time"
+      end
+
+      private def _components(component_type)
+        # note: events(), todos(), journals(), freebusys() are attributes added
+        # to Icalendar::Calendar by meta-programming.
+        case component_type
+        when :events then events
+        when :todos then todos
+        when :journals then journals
+        when :freebusys then freebusys
+        else
+          raise ArgumentError, "Unknown Component type: `#{component_type}`."
+        end
+      end
+
+      private def _occurrences_between(components, begin_time, closing_time)
+        result = []
+        components.each do |comp|
+          occurrences = comp.schedule.occurrences_between(begin_time, closing_time)
+          occurrences.each do |oc|
+            new_oc = Icalendar::Rrule::Occurrence.new(self, comp, oc.start_time, oc.end_time)
+            result << new_oc
+          end
+        end
+        result
       end
     end
   end

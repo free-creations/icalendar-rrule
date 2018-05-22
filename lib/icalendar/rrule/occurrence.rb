@@ -47,7 +47,7 @@ module Icalendar
       # @param [ActiveSupport::TimeWithZone]  end_time the time when this occurrence starts.
       #                    (might be different to the end time of the base_component)
       #
-      def initialize(base_calendar, base_component, start_time, end_time) # rubocop:disable Metrics/MethodLength
+      def initialize(base_calendar, base_component, start_time, end_time)
         raise ArgumentError, "'base_calendar' not of class 'Icalendar::Calendar'" unless
             base_calendar.nil? || base_calendar.is_a?(Icalendar::Calendar)
         raise ArgumentError, "'base_component' not of class 'Icalendar::Component'" unless

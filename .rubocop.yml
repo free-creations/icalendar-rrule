@@ -16,6 +16,9 @@ Metrics/BlockLength:
 Metrics/LineLength:
   Max: 122
 
+Metrics/MethodLength:
+  Max: 16
+
 Naming/FileName:
   Exclude:
      - 'lib/icalendar-rrule.rb'
