@@ -106,9 +106,13 @@ module Icalendar
       # 2. @end_time
       def <=>(other)
         return nil unless other.respond_to? :start_time
-        start_compare = @start_time.to_datetime <=> other.start_time.to_datetime
+        return nil unless other.start_time.is_a?(ActiveSupport::TimeWithZone)
+        start_compare = @start_time <=> other.start_time
         return start_compare unless start_compare.zero?
-        @end_time.to_datetime <=> other.end_time.to_datetime
+
+        return 0 unless other.respond_to? :end_time
+        return 0 unless other.end_time.is_a?(ActiveSupport::TimeWithZone)
+        @end_time <=> other.end_time
       end
     end
   end

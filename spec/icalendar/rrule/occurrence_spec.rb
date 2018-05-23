@@ -19,7 +19,8 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       let(:time_3) { zone.parse('2018-04-03 15:30:45') }
       let(:time_4) { zone.parse('2018-04-04 15:30:45') }
 
-      let(:later_component) { described_class.new(nil, base_component, time_3, time_4) }
+      let(:start_later) { described_class.new(nil, base_component, time_3, time_4) }
+      let(:end_later)   { described_class.new(nil, base_component, time_1, time_4) }
 
       it 'has the same attributes as its base component' do
         is_expected.to have_attributes(
@@ -66,8 +67,12 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       specify 'un-initialised *custom properties* have the default value `[]`' do
         expect(occurrence.x_foo).to eq([])
       end
-      it 'is always smaller than a later component (its natural sort order is `@start_time`)' do
-        is_expected.to be < later_component
+      it 'is always smaller than any occurence that starts later (its natural sort order is `@start_time`)' do
+        is_expected.to be < start_later
+      end
+
+      it 'is smaller than an occurence that starts at the same time but  ends later' do
+        is_expected.to be < end_later
       end
     end
   end
