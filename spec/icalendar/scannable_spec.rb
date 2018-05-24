@@ -32,27 +32,27 @@ RSpec.describe Icalendar::Scannable do
     it 'is has over 100 entries within the test time elapse' do
       expect(calendar_scan.size).to be > 100
     end
-    #
-    # [1, 60, -1].each do |i| # lets check for several entries one beginning and in middle of the year
-    #
-    #   describe "occurrence[#{i}] of this scan" do
-    #     subject(:occurrence) do
-    #       calendar_scan[i]
-    #     end
-    #
-    #     it 'lives in the same time-zone as its underlying calendar' do
-    #       expect(occurrence.tzid).to eq('America/New_York')
-    #     end
-    #
-    #     it "starts at the same time as its underlying event (eight o'clock in the morning)" do
-    #       expect(occurrence.@start_time.strftime('%H:%M')).to eq('10:00')
-    #     end
-    #
-    #     it "ends at the same time as its underlying event (five o'clock in the afternoon)" do
-    #       expect(occurrence.@end_time.strftime('%H:%M')).to eq('11:00')
-    #     end
-    #   end
-    # end
+
+    [1, 60, -1].each do |i| # lets check for several entries; one at the beginning and one in the middle of the year
+
+      describe "occurrence[#{i}] of this scan" do
+        subject(:occurrence) do
+          calendar_scan[i]
+        end
+
+        it 'lives in the same time-zone as its underlying calendar' do
+          expect(occurrence.time_zone.name).to eq('America/New_York')
+        end
+
+        # it "starts at the same time as its underlying event (eight o'clock in the morning)" do
+        #   expect(occurrence.@start_time.strftime('%H:%M')).to eq('10:00')
+        # end
+        #
+        # it "ends at the same time as its underlying event (five o'clock in the afternoon)" do
+        #   expect(occurrence.@end_time.strftime('%H:%M')).to eq('11:00')
+        # end
+      end
+    end
   end
   context 'when the underlying calendar has exclusively events' do
     subject(:calendar) { FixtureHelper.parse_to_calendar('daily_event.ics') }
