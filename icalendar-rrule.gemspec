@@ -8,7 +8,7 @@ require 'icalendar/rrule/version'
 
 Gem::Specification.new do |gem_spec|
   gem_spec.name          = 'icalendar-rrule'
-  gem_spec.version       =  Icalendar::Rrule::VERSION
+  gem_spec.version       = Icalendar::Rrule::VERSION
   gem_spec.authors       = ['Harald Postner']
   gem_spec.email         = ['harald@free-creations.de']
 
