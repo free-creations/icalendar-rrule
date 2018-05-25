@@ -117,6 +117,17 @@ module Icalendar
       end
 
       ##
+      # Make sure, that we can always query for an _exdate_ array.
+      # @return [array] an array of _ical exdates_ (or an empty array
+      #                if no repeat-rules are defined for this component).
+      # @api private
+      def _exdates
+        Array(exdate)
+      rescue StandardError
+        []
+      end
+
+      ##
       # Creates a schedule for this event
       # @return [IceCube::Schedule]
       def schedule
@@ -127,7 +138,11 @@ module Icalendar
           ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
         end
-        # FIXME: treat exdate etc.
+
+        _exdates.each do |exdate|
+          schedule.add_exception_time(_to_time_with_zone(exdate))
+        end
+
         schedule
       end
 

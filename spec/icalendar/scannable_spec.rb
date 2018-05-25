@@ -191,4 +191,21 @@ RSpec.describe Icalendar::Scannable do
       expect { calendar.scan(begin_time, end_time, [:foos]) }.to raise_error(ArgumentError)
     end
   end
+
+  context 'when the calendar has repeating events with excludes dates' do
+    subject(:calendar) { FixtureHelper.parse_to_calendar('exdate.ics') }
+
+    let(:begin_time) { Date.parse('2018-05-24') }
+    let(:end_time) { Date.parse('2018-06-09') }
+
+    specify 'the calendar provided by the fixture contains exactly *one* event' do
+      # ..verify the fixture.
+      expect(calendar.events.size).to eq(1)
+    end
+
+
+    it '#scan returns two event-occurrences in the time span' do
+      expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(2)
+    end
+  end
 end
