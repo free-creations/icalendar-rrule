@@ -203,7 +203,6 @@ RSpec.describe Icalendar::Scannable do
       expect(calendar.events.size).to eq(1)
     end
 
-
     it '#scan returns two event-occurrences in the time span' do
       expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(2)
     end
