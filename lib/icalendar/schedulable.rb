@@ -111,7 +111,7 @@ module Icalendar
       #                if no repeat-rules are defined for this component).
       # @api private
       def _rrules
-        Array(rrule).map(&:value_ical)
+        Array(rrule).flatten.map(&:value_ical)
       rescue StandardError
         []
       end
@@ -122,7 +122,7 @@ module Icalendar
       #                if no repeat-rules are defined for this component).
       # @api private
       def _exdates
-        Array(exdate)
+        Array(exdate).flatten
       rescue StandardError
         []
       end
