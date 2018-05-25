@@ -27,17 +27,12 @@ module Icalendar
         component_types = component_types.to_set
         result = []
         component_types.each do |component_type|
-          result += _occurrences_between(_components(component_type), _to_time(begin_time), _to_time(closing_time))
+          result += _occurrences_between(_components(component_type), begin_time,closing_time)
         end
         result ||= [] # stop RubyMine to complain about uninitialized result.
         result.sort!
       end
 
-      private def _to_time(date_or_time)
-        return date_or_time if date_or_time.acts_like?(:time)
-        return date_or_time.to_datetime.to_time if date_or_time.acts_like?(:date)
-        raise ArgumentError, "Cannot interpret #{date_or_time} as Time"
-      end
 
       private def _components(component_type)
         # note: events(), todos(), journals(), freebusys() are attributes added
@@ -45,8 +40,10 @@ module Icalendar
         case component_type
         when :events then events
         when :todos then todos
+          # :nocov:
         when :journals then journals
         when :freebusys then freebusys
+          # :nocov:
         else
           raise ArgumentError, "Unknown Component type: `#{component_type}`."
         end
