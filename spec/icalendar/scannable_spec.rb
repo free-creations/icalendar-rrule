@@ -37,7 +37,6 @@ RSpec.describe Icalendar::Scannable do
     end
 
     [1, 60, -1].each do |i| # lets check for several entries; one at the beginning and one in the middle of the year
-
       describe "occurrence[#{i}] of this scan" do
         subject(:occurrence) do
           calendar_scan[i]

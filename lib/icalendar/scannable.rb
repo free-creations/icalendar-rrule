@@ -27,12 +27,11 @@ module Icalendar
         component_types = component_types.to_set
         result = []
         component_types.each do |component_type|
-          result += _occurrences_between(_components(component_type), begin_time,closing_time)
+          result += _occurrences_between(_components(component_type), begin_time, closing_time)
         end
         result ||= [] # stop RubyMine to complain about uninitialized result.
         result.sort!
       end
-
 
       private def _components(component_type)
         # note: events(), todos(), journals(), freebusys() are attributes added

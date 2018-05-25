@@ -88,6 +88,7 @@ module Icalendar
       def time_zone
         base_component.component_timezone
       end
+
       ##
       # Returns true if the Occurrence can respond to the given method, that is, the
       # base component responds to the given method.
