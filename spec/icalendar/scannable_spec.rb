@@ -192,7 +192,7 @@ RSpec.describe Icalendar::Scannable do
     end
   end
 
-  context 'when the calendar has repeating events with excludes dates (two entries)' do
+  context 'when the calendar has repeating events with excluded dates (two entries)' do
     subject(:calendar) { FixtureHelper.parse_to_calendar('exdate.ics') }
 
     let(:begin_time) { Date.parse('2018-05-24') }
@@ -208,7 +208,7 @@ RSpec.describe Icalendar::Scannable do
     end
   end
 
-  context 'when the calendar has repeating events with excludes dates(one comma separated list)' do
+  context 'when the calendar has repeating events with excluded dates(one comma separated list)' do
     subject(:calendar) { FixtureHelper.parse_to_calendar('exdate_2.ics') }
 
     let(:begin_time) { Date.parse('2018-05-24') }
@@ -221,6 +221,25 @@ RSpec.describe Icalendar::Scannable do
 
     it '#scan returns two event-occurrences in the time span' do
       expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(2)
+    end
+  end
+  context 'when the calendar repeats defined by RDATE entries (one comma separated list)' do
+    subject(:calendar) { FixtureHelper.parse_to_calendar('rdate_2.ics') }
+
+    let(:begin_time) { Date.parse('2018-05-24') }
+    let(:end_time) { Date.parse('2018-06-16') }
+
+    # rubocop:disable RSpec/MultipleExpectations
+    specify 'the calendar provided by the fixture contains exactly *one* event' do
+      # ..verify the fixture.
+      expect(calendar.events.size).to eq(1)
+      expect(calendar.events[0].rdate[0]).to be_a_kind_of(Icalendar::Values::Array)
+      expect(calendar.events[0].rdate[0].size).to eq(2)
+    end
+    # rubocop:enable RSpec/MultipleExpectations
+
+    it '#scan returns three event-occurrences in the time span' do
+      expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(3)
     end
   end
 end

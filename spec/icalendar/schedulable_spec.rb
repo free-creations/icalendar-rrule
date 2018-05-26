@@ -29,7 +29,11 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
 
     let(:ruby_date) do
-      Date.new(1970, 1, 1)
+      Date.new(2018, 5, 26)
+    end
+
+    let(:hawaii_timezone) do
+      ActiveSupport::TimeZone['Hawaii']
     end
 
     # rubocop:disable RSpec/MultipleExpectations
@@ -77,11 +81,17 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
     specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for a ruby_date') do
       expect(component._to_time_with_zone(ruby_date)).to be_a(ActiveSupport::TimeWithZone)
-      expect(component._to_time_with_zone(ruby_date)).to eq(ruby_date)
+      expect(component._to_time_with_zone(ruby_date).to_date).to eq(ruby_date)
     end
 
     specify('.schedule returns an `IceCube::Schedule`') do
       expect(component.schedule).to be_a(IceCube::Schedule)
+    end
+
+    specify('#_date_to_time_with_zone converts to midnight') do
+      expect(component._date_to_time_with_zone(ruby_date, hawaii_timezone)).to be_a(ActiveSupport::TimeWithZone)
+      expect(component._date_to_time_with_zone(ruby_date, hawaii_timezone).to_date).to eq(ruby_date)
+      expect(component._date_to_time_with_zone(ruby_date, hawaii_timezone).to_s).to eq('2018-05-26 00:00:00 -1000')
     end
     # rubocop:enable RSpec/MultipleExpectations
   end

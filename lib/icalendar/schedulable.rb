@@ -128,9 +128,20 @@ module Icalendar
       end
 
       ##
+      # Make sure, that we can always query for an rdate(Recurrence Date) array.
+      # @return [array] an array of _ical rdates_ (or an empty array
+      #                if no repeat-rules are defined for this component).
+      # @api private
+      def _rdates
+        Array(rdate).flatten
+      rescue StandardError
+        []
+      end
+
+      ##
       # Creates a schedule for this event
       # @return [IceCube::Schedule]
-      def schedule
+      def schedule # rubocop:disable Metrics/AbcSize
         schedule = IceCube::Schedule.new
         schedule.start_time = start_time
         schedule.end_time = end_time
@@ -139,10 +150,14 @@ module Icalendar
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
         end
 
-        _exdates.each do |exdate|
-          schedule.add_exception_time(_to_time_with_zone(exdate))
+        _exdates.each do |time|
+          schedule.add_exception_time(_to_time_with_zone(time))
         end
 
+        rdates = _rdates
+        rdates.each do |time|
+          schedule.add_recurrence_time(_to_time_with_zone(time))
+        end
         schedule
       end
 
@@ -156,7 +171,9 @@ module Icalendar
       # @return [ActiveSupport::TimeWithZone] if the given object satisfies all conditions it is returned unchanged.
       #                                     Otherwise the method attempts to "correct" the given Object.
       #
-      def _to_time_with_zone(date_time, timezone = nil)
+      # rubocop:disable Metrics/LineLength
+      def _to_time_with_zone(date_time, timezone = nil) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
+        # rubocop:enable Metrics/LineLength
         timezone ||= component_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.
@@ -174,6 +191,18 @@ module Icalendar
           # convert to the requested timezone and return it.
           return date_time_value.in_time_zone(timezone)
 
+        elsif date_time_value.is_a?(DateTime)
+          return date_time_value.in_time_zone(timezone)
+
+        elsif date_time_value.is_a?(Icalendar::Values::Date)
+          return _date_to_time_with_zone(date_time_value, timezone)
+
+        elsif date_time_value.is_a?(Date)
+          return _date_to_time_with_zone(date_time_value, timezone)
+
+        elsif date_time_value.respond_to?(:to_time)
+          return timezone.at(date_time_value.to_time)
+
         elsif date_time_value.respond_to?(:to_i)
           # lets interpret the given value as the number of seconds since the Epoch (January 1, 1970 00:00 UTC).
           return timezone.at(date_time_value.to_i)
@@ -181,6 +210,16 @@ module Icalendar
         end
         # Oops, the given object is unusable, we'll give back the NULL_DATE
         timezone.at(NULL_TIME)
+      end
+
+      ##
+      # Convert a date into the corresponding TimeWithZone value.
+      # @param [#to_date] date a calendar date.
+      # @param [ActiveSupport::TimeZone] timezone the timezone to be used.
+      # @return [ActiveSupport::TimeWithZone] mid-night in the given timezone at the given date.
+      def _date_to_time_with_zone(date, timezone)
+        d = date.to_date
+        timezone.local(d.year, d.month, d.day)
       end
 
       ##
