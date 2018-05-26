@@ -171,9 +171,8 @@ module Icalendar
       # @return [ActiveSupport::TimeWithZone] if the given object satisfies all conditions it is returned unchanged.
       #                                     Otherwise the method attempts to "correct" the given Object.
       #
-      # rubocop:disable Metrics/LineLength
-      def _to_time_with_zone(date_time, timezone = nil) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
-        # rubocop:enable Metrics/LineLength
+      # rubocop:disable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
+      def _to_time_with_zone(date_time, timezone = nil)
         timezone ||= component_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.
@@ -211,6 +210,7 @@ module Icalendar
         # Oops, the given object is unusable, we'll give back the NULL_DATE
         timezone.at(NULL_TIME)
       end
+      # rubocop:enable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
 
       ##
       # Convert a date into the corresponding TimeWithZone value.
