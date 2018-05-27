@@ -11,6 +11,14 @@ module Icalendar
   # __Note:__ [Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)
   # is a _Ruby core feature_ since Ruby 2.0
   #
+  # FIXME: take care of the following
+  # ```
+  # For cases where a "VEVENT" calendar component
+  # specifies a "DTSTART" property with a DATE value type but no
+  # "DTEND" nor "DURATION" property, the event's duration is taken to
+  #  be one day.
+  # ```
+  #
   module Schedulable
     ##
     # @!method start_time()

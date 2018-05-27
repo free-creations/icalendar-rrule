@@ -223,7 +223,7 @@ RSpec.describe Icalendar::Scannable do
       expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(2)
     end
   end
-  context 'when the calendar repeats defined by RDATE entries (one comma separated list)' do
+  context 'when the calendar uses RDATE to repeat entries (one comma separated list)' do
     subject(:calendar) { FixtureHelper.parse_to_calendar('rdate_2.ics') }
 
     let(:begin_time) { Date.parse('2018-05-24') }
@@ -242,7 +242,7 @@ RSpec.describe Icalendar::Scannable do
       expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(3)
     end
   end
-  context 'when the calendar repeats defined by RDATE entries (two separate entries)' do
+  context 'when the calendar uses RDATE to repeat entries (two separate entries)' do
     subject(:calendar) { FixtureHelper.parse_to_calendar('rdate.ics') }
 
     let(:begin_time) { Date.parse('2018-05-24') }
@@ -254,6 +254,25 @@ RSpec.describe Icalendar::Scannable do
       expect(calendar.events.size).to eq(1)
       expect(calendar.events[0].rdate).to be_a_kind_of(Array)
       expect(calendar.events[0].rdate.size).to eq(2)
+    end
+    # rubocop:enable RSpec/MultipleExpectations
+
+    it '#scan returns three event-occurrences in the time span' do
+      expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(3)
+    end
+  end
+  context 'when the calendar uses RECURRENCE-ID to overwrite some occurrences' do
+    subject(:calendar) { FixtureHelper.parse_to_calendar('exception.ics') }
+
+    let(:begin_time) { Date.parse('2018-05-25') }
+    let(:end_time)   { Date.parse('2018-06-10') }
+
+    # rubocop:disable RSpec/MultipleExpectations
+    specify 'the calendar provided by the fixture contains exactly *one* event' do
+      # ..verify the fixture.
+      expect(calendar.events.size).to eq(2)
+      expect(calendar.events[0].rrule).to be_truthy
+      expect(calendar.events[1].recurrence_id).to be_truthy
     end
     # rubocop:enable RSpec/MultipleExpectations
 
