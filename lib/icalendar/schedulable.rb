@@ -5,8 +5,12 @@ require 'active_support/time_with_zone'
 
 module Icalendar
   ##
-  # Refines the  Icalendar::Component class by adding
-  # an interface to the IceCube Gem  into the Icalendar::Component-class.
+  # Refines the  Icalendar::Component class.
+  #
+  # The purpose of these refinements are:
+  #
+  # - interface the Icalendar::Component-class to the IceCube Gem.
+  # - unify time and date handling by using ActiveSupport::TimeWithZone everywhere.
   #
   # __Note:__ [Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)
   # is a _Ruby core feature_ since Ruby 2.0
@@ -144,6 +148,23 @@ module Icalendar
         Array(rdate).flatten
       rescue StandardError
         []
+      end
+
+      ##
+      # Make sure, that we can always query for the recurrence identity.
+      # @return [Icalendar::Values::DateTime] the recurrence_id (or nil if not defined in the component)
+      # @api private
+      private def _recurrence_id
+        recurrence_id
+      rescue StandardError
+        nil
+      end
+
+      ##
+      # For components that represent an instance of a recurrence this is the original value of the "DTSTART" property.
+      # @return [ActiveSupport::TimeWithZone] the recurrence_id or nil.
+      def recurrence_id
+        _to_time_with_zone(_recurrence_id) if _recurrence_id
       end
 
       ##

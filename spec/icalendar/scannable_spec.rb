@@ -272,7 +272,7 @@ RSpec.describe Icalendar::Scannable do
       # ..verify the fixture.
       expect(calendar.events.size).to eq(2)
       expect(calendar.events[0].rrule).to be_truthy
-      expect(calendar.events[1].recurrence_id).to be_truthy
+      expect(calendar.events[1].recurrence_id).to be_truthy # <<< the second event overwrites a regular recurrence.
     end
     # rubocop:enable RSpec/MultipleExpectations
 

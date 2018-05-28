@@ -97,12 +97,41 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
   end
 
   describe Icalendar::Event do
-    subject(:event) do
-      described_class.new
+    context 'with bare minimum Event' do
+      subject(:event) do
+        described_class.new
+      end
+
+      specify('.schedule returns an `IceCube::Schedule`') do
+        expect(event.schedule).to be_a(IceCube::Schedule)
+      end
+    end
+    context 'when the Event is a redefined recurrence' do
+      redefined_start = Icalendar::Values::DateTime.new('20180327T123225', tzid: 'America/New_York')
+      original_start  = Icalendar::Values::DateTime.new('20180327T110000', tzid: 'America/New_York')
+      subject(:event) do
+        r = described_class.new
+        r.dtstart = redefined_start
+        r.recurrence_id = original_start
+        r
+      end
+
+      specify('#original_start returns the original start value') do
+        expect(event.recurrence_id).to eq(original_start)
+      end
     end
 
-    specify('.schedule returns an `IceCube::Schedule`') do
-      expect(event.schedule).to be_a(IceCube::Schedule)
+    context 'when the Event is not a redefined recurrence' do
+      original_start = Icalendar::Values::DateTime.new('20180327T110000', tzid: 'America/New_York')
+      subject(:event) do
+        r = described_class.new
+        r.dtstart = original_start
+        r
+      end
+
+      specify('#original_start returns nil') do
+        expect(event.recurrence_id).to be_nil
+      end
     end
   end
 

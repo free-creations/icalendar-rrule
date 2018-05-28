@@ -67,12 +67,16 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       specify 'un-initialised *custom properties* have the default value `[]`' do
         expect(occurrence.x_foo).to eq([])
       end
-      it 'is always smaller than any occurence that starts later (its natural sort order is `@start_time`)' do
+      it 'is always smaller than any occurrence that starts later (its natural sort order is `@start_time`)' do
         is_expected.to be < start_later
       end
 
-      it 'is smaller than an occurence that starts at the same time but  ends later' do
+      it 'is smaller than an occurrence that starts at the same time but  ends later' do
         is_expected.to be < end_later
+      end
+
+      it 'has a property `@extended_recurrence_id` ' do
+        expect(occurrence.extended_recurrence_id).to be_a(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
       end
     end
   end
