@@ -94,6 +94,9 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._date_to_time_with_zone(ruby_date, hawaii_timezone).to_s).to eq('2018-05-26 00:00:00 -1000')
     end
     # rubocop:enable RSpec/MultipleExpectations
+    it 'has method #_overwritten_dates' do
+      expect(component._overwritten_dates).to be_a(Array)
+    end
   end
 
   describe Icalendar::Event do
@@ -171,6 +174,12 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
     it 'has method #_overwritten_dates' do
       expect(base_event._overwritten_dates).to be_a(Array)
+    end
+    it '#_overwritten_dates contains one item' do
+      expect(base_event._overwritten_dates.size).to eq(1)
+    end
+    it '#_overwritten_dates contains one item' do
+      expect(base_event._overwritten_dates.first.to_s).to eq('2018-06-02 19:00:00 +0200')
     end
   end
 end

@@ -136,13 +136,40 @@ module Icalendar
       end
 
       ##
+      # Make sure, that we can always query for the sequence.
+      # @return [Integer] the sequence or -1.
+      # @api private
+      def _sequence
+        sequence
+      rescue StandardError
+        -1
+      end
+
+      ##
+      # Make sure, that we can always query for the sequence.
+      # @return [Integer] the sequence or -1.
+      # @api private
+      def _recurrence_id
+        _to_time_with_zone(recurrence_id)
+      rescue StandardError
+        nil
+      end
+
+      ##
       # Like the for _exdates also for these dates do not schedule recurrence items.
       #
       # @return [array<ActiveSupport::TimeWithZone>] an array of dates.
       # @api private
       def _overwritten_dates
-        puts "<<< _overwritten_dates parent =#{parent}"
-        []
+        return [] unless respond_to?(:parent)
+        return [] unless parent.is_a?(Icalendar::Calendar)
+        result = []
+        parent.events.each do |event|
+          next unless uid == event.uid
+          next unless _sequence < event._sequence
+          result << event._recurrence_id
+        end
+        result
       end
 
       ##
