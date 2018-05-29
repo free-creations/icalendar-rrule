@@ -126,12 +126,22 @@ module Icalendar
 
       ##
       # Make sure, that we can always query for an _exdate_ array.
-      # @return [array] an array of _ical exdates_ (or an empty array
+      # @return [array<ActiveSupport::TimeWithZone>] an array of _ical exdates_ (or an empty array
       #                if no repeat-rules are defined for this component).
       # @api private
       def _exdates
         Array(exdate).flatten
       rescue StandardError
+        []
+      end
+
+      ##
+      # Like the for _exdates also for these dates do not schedule recurrence items.
+      #
+      # @return [array<ActiveSupport::TimeWithZone>] an array of dates.
+      # @api private
+      def _overwritten_dates
+        puts "<<< _overwritten_dates parent =#{parent}"
         []
       end
 

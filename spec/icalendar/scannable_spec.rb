@@ -277,7 +277,7 @@ RSpec.describe Icalendar::Scannable do
     # rubocop:enable RSpec/MultipleExpectations
 
     it '#scan returns three event-occurrences in the time span' do
-      skip("not yet implemented")
+      skip('not yet implemented')
       expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(3)
     end
   end

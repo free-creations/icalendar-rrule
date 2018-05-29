@@ -163,4 +163,14 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       # rubocop:enable RSpec/MultipleExpectations
     end
   end
+
+  context 'when the calendar uses RECURRENCE-ID to overwrite some occurrences' do
+    subject(:base_event) do
+      FixtureHelper.parse_to_first_event('exception.ics')
+    end
+
+    it 'has method #_overwritten_dates' do
+      expect(base_event._overwritten_dates).to be_a(Array)
+    end
+  end
 end
