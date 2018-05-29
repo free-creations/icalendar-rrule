@@ -64,21 +64,19 @@ module Icalendar
         # Compares this occurrence to the other.
         # Comparison is on:
         #
-        # 1. @uid
-        # 2. @orig_start
+        # 1. @dtstart
+        # 2. @uid
         # 3. inverse @sequence (highest first)
         #
         # @param [ExtendedRecurrenceID] other the other occurrence
         # @return [Integer] -1, 0, +1 if less equal or greater
         def <=>(other)
-          raise ArgumentError, "'other' not of class 'Icalendar::Rrule::Occurrence::ExtendedRecurrenceID'" unless
-              other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
+          return nil unless other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
+          start_compare = @orig_start <=> other.orig_start
+          return start_compare unless start_compare.zero?
 
           uid_compare = @uid <=> other.uid
           return uid_compare unless uid_compare.zero?
-
-          start_compare = @orig_start <=> other.orig_start
-          return start_compare unless start_compare.zero?
 
           other.sequence <=> @sequence
         end
@@ -87,9 +85,8 @@ module Icalendar
         # @param [ExtendedRecurrenceID] other the other occurrence to compare to.
         # @return [Boolean] true if both objects refer to the same event.
         def same_event?(other)
-          raise ArgumentError, "'other' not of class 'Icalendar::Rrule::Occurrence::ExtendedRecurrenceID'" unless
-              other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
-          (@uid == other.uid) && (@orig_start == other.orig_start)
+          return nil unless other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
+          (@orig_start == other.orig_start) && (@uid == other.uid)
         end
       end
 
@@ -159,58 +156,6 @@ module Icalendar
       # @return [ActiveSupport::TimeZone] the timezone used in this component
       def time_zone
         base_component.component_timezone
-      end
-
-      ##
-      # @return [ActiveSupport::TimeWithZone] if this occurrence has been shifted this will give the
-      #                time when the occurrence would have started originally.
-      def _original_start
-        base_component.recurrence_id || start_time
-      end
-
-      ##
-      # @return [String] the Unique Identifier of the base component.
-      def _uid
-        base_component.uid
-      rescue StandardError
-        ''
-      end
-
-      ##
-      # @return [Integer] the revision sequence number of the base component
-      def _sequence
-        base_component.sequence
-      rescue StandardError
-        -1
-      end
-
-      ##
-      # @return [ExtendedRecurrenceID] the extended recurrence identity of the base component.
-      def extended_recurrence_id
-        @extended_recurrence_id ||= ExtendedRecurrenceID.new(_original_start, _uid, _sequence)
-      end
-
-      ##
-      # @param [Occurrence] other the other occurrence to compare to.
-      # @return [Boolean] true if both objects refer to the same event.
-      def same_event?(other)
-        raise ArgumentError, "'other' not of class 'Icalendar::Rrule::Occurrence'" unless
-            other.is_a?(Icalendar::Rrule::Occurrence)
-        extended_recurrence_id.same_event?(other.extended_recurrence_id)
-      end
-
-      ##
-      # Compares this occurrence to the other.
-      #
-      # The order determined by this comparison is
-      #
-      #
-      # @param [ExtendedRecurrenceID] other the other occurrence
-      # @return [Integer] -1, 0, +1 for less equal or greater
-      def recurrence_comparison(other)
-        raise ArgumentError, "'other' not of class 'Icalendar::Rrule::Occurrence'" unless
-            other.is_a?(Icalendar::Rrule::Occurrence)
-        extended_recurrence_id <=> other.extended_recurrence_id
       end
 
       ##
