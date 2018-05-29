@@ -136,7 +136,14 @@ module Icalendar
       end
 
       ##
-      # Make sure, that we can always query for the sequence.
+      # Make sure, that we can always query for the Sequence Number.
+      #
+      # From RFC 5545
+      # ```
+      # 3.8.7.4.  Sequence Number
+      # This property defines the revision sequence number of the
+      #       calendar component within a sequence of revisions.
+      # ```
       # @return [Integer] the sequence or -1.
       # @api private
       def _sequence
@@ -146,11 +153,25 @@ module Icalendar
       end
 
       ##
-      # Make sure, that we can always query for the sequence.
-      # @return [Integer] the sequence or -1.
+      # Make sure, that we can always query for the Recurrence ID.
+      #
+      # ```
+      #   3.8.4.4.  Recurrence ID
+      #
+      #   This property is used in conjunction with the "UID" and
+      #       "SEQUENCE" properties to identify a specific instance of a
+      #       recurring "VEVENT", "VTODO", or "VJOURNAL" calendar component.
+      #
+      # ```
+      #
+      #
+      # @return [ActiveSupport::TimeWithZone] the original value of the "DTSTART" property
+      #       of the recurrence instance.
       # @api private
       def _recurrence_id
-        _to_time_with_zone(recurrence_id)
+        id = recurrence_id
+        return id unless id
+        _to_time_with_zone(id)
       rescue StandardError
         nil
       end

@@ -172,13 +172,14 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       FixtureHelper.parse_to_first_event('exception.ics')
     end
 
-    it 'has method #_overwritten_dates' do
+    specify 'has method #_overwritten_dates' do
       expect(base_event._overwritten_dates).to be_a(Array)
     end
-    it '#_overwritten_dates contains one item' do
+    specify '#_overwritten_dates contains one item' do
       expect(base_event._overwritten_dates.size).to eq(1)
     end
-    it '#_overwritten_dates contains one item' do
+    specify '#_overwritten_dates contains one item for 2018-06-02 19:00:00 +0200' do
+      # RECURRENCE-ID;TZID=Europe/Berlin:20180602T190000
       expect(base_event._overwritten_dates.first.to_s).to eq('2018-06-02 19:00:00 +0200')
     end
   end
