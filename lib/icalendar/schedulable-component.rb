@@ -6,7 +6,7 @@ require 'active_support/time_with_zone'
 module Icalendar
   ##
   # Refines the  Icalendar::Component class by adding
-  # an interface to the IceCube Gem  into the Icalendar::Component-class.
+  # an interface between the IceCube Gem  and the the Icalendar::Component-class.
   #
   # __Note:__ _Refinement_  is a Ruby core feature since Ruby 2.0.
   # @see: https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html
