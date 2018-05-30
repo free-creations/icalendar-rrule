@@ -8,16 +8,16 @@ module Icalendar
   # Refines the  Icalendar::Component class by adding
   # an interface to the IceCube Gem  into the Icalendar::Component-class.
   #
-  # __Note:__ [Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)
-  # is a _Ruby core feature_ since Ruby 2.0
+  # __Note:__ _Refinement_  is a Ruby core feature since Ruby 2.0.
+  # @see: https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html
   #
-  # FIXME: take care of the following
-  # ```
-  # For cases where a "VEVENT" calendar component
-  # specifies a "DTSTART" property with a DATE value type but no
-  # "DTEND" nor "DURATION" property, the event's duration is taken to
-  #  be one day.
-  # ```
+  # The purpose of this module is:
+  #
+  # - normalise the handling of date and time by using ActiveSupport::TimeWithZone everywhere.
+  # - provide the methods *start_time* and *end_time* that always return something sensible, no matter
+  #   how these times were defined in the original component.
+  # - provide a schedule for repeating events created by the so called **rrule**.
+  #
   #
   module Schedulable
     ##
@@ -73,16 +73,43 @@ module Icalendar
       rescue StandardError
         nil
       end
+      ##
+      # Make sure, that we can always query for a _the duration value.
+      # @return [Icalendar::Values::Duration, nil] a valid Duration object or nil.
+      # @api private
+      def _duration
+        duration
+      rescue StandardError
+        nil
+      end
 
       ##
       # @return [Integer] the number of seconds this task will last.
       #                   If no duration for this task is specified, this function returns zero.
       # @api private
       def _duration_seconds # rubocop:disable Metrics/AbcSize
-        return 0 unless respond_to? :duration
-        d = duration
-        return 0 unless d.is_a?(Icalendar::Values::Duration)
+        return _guessed_duration unless _duration
+        d = _duration
+        return _guessed_duration unless d.is_a?(Icalendar::Values::Duration)
         d.seconds + (d.minutes * SEC_MIN) + (d.hours * SEC_HOUR) + (d.days * SEC_DAY) + (d.weeks * SEC_WEEK)
+      end
+
+      ##
+      # Make an educated guess how long this event might last according to the following definition from RFC 5545:
+      #
+      #   > For cases where a "VEVENT" calendar component
+      #   > specifies a "DTSTART" property with a DATE value type but no
+      #   > "DTEND" nor "DURATION" property, the event's duration is taken to
+      #   >  be one day.
+      #
+      # @return [Integer] the number of seconds this task might last.
+      # @api private
+      def _guessed_duration
+        if _dtstart.is_a?(Icalendar::Values::Date) && _dtend.nil? && _duration.nil? && _due.nil?
+          SEC_DAY
+        else
+          0
+        end
       end
 
       ##
@@ -136,24 +163,9 @@ module Icalendar
       end
 
       ##
-      # Make sure, that we can always query for the Sequence Number.
-      #
-      # From RFC 5545
-      # ```
-      # 3.8.7.4.  Sequence Number
-      # This property defines the revision sequence number of the
-      #       calendar component within a sequence of revisions.
-      # ```
-      # @return [Integer] the sequence or -1.
-      # @api private
-      def _sequence
-        sequence
-      rescue StandardError
-        -1
-      end
-
-      ##
       # Make sure, that we can always query for the Recurrence ID.
+      #
+      # From RFC 5545:
       #
       # ```
       #   3.8.4.4.  Recurrence ID
@@ -164,30 +176,49 @@ module Icalendar
       #
       # ```
       #
-      #
       # @return [ActiveSupport::TimeWithZone] the original value of the "DTSTART" property
       #       of the recurrence instance.
       # @api private
       def _recurrence_id
-        id = recurrence_id
-        return id unless id
-        _to_time_with_zone(id)
+        recurrence_id
       rescue StandardError
         nil
       end
 
       ##
-      # Like the for _exdates also for these dates do not schedule recurrence items.
+      # Is this component a replacement for a certain repeat- occurrence.
+      # @return [Boolean] true if this component replaces a repeat- occurrence.
+      # @api private
+      def _is_substitute?
+        !_recurrence_id.nil?
+      end
+
+      ##
+      # @return [Array<Icalendar::Component>] the container that holds this component.
+      # @api private
+      def _parent_set
+        return [] unless respond_to?(:parent)
+        return [] unless parent.is_a?(Icalendar::Calendar)
+
+        case self
+        when Icalendar::Event then parent.events
+        when Icalendar::Todo then parent.todos
+        when Icalendar::Journal then parent.journals
+        else
+          []
+        end
+      end
+
+      ##
+      # Like the for _exdates, also for these dates do not schedule recurrence items.
       #
       # @return [array<ActiveSupport::TimeWithZone>] an array of dates.
       # @api private
       def _overwritten_dates
-        return [] unless respond_to?(:parent)
-        return [] unless parent.is_a?(Icalendar::Calendar)
         result = []
-        parent.events.each do |event|
+        _parent_set.each do |event|
           next unless uid == event.uid
-          next unless _sequence < event._sequence
+          next unless event._is_substitute?
           result << event._recurrence_id
         end
         result
@@ -207,7 +238,7 @@ module Icalendar
       ##
       # Creates a schedule for this event
       # @return [IceCube::Schedule]
-      def schedule # rubocop:disable Metrics/AbcSize
+      def schedule # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         schedule = IceCube::Schedule.new
         schedule.start_time = start_time
         schedule.end_time = end_time
@@ -217,6 +248,10 @@ module Icalendar
         end
 
         _exdates.each do |time|
+          schedule.add_exception_time(_to_time_with_zone(time))
+        end
+
+        _overwritten_dates.each do |time|
           schedule.add_exception_time(_to_time_with_zone(time))
         end
 

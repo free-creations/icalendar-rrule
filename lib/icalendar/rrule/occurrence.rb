@@ -35,62 +35,6 @@ module Icalendar
       using Icalendar::Schedulable
 
       ##
-      # This class helps to  identify a specific instance of a
-      # recurring "VEVENT", "VTODO", or "VJOURNAL" calendar component.
-      class ExtendedRecurrenceID
-        include Comparable
-        ##
-        # @return [ActiveSupport::TimeWithZone] the DATE-TIME value that is set to the time when the original
-        #           recurrence instance would occur.
-        attr_reader :orig_start
-        ##
-        # @return [String] the unique identifier of the base_component.
-        attr_reader :uid
-        ##
-        # @return [Integer] an identifier for a particular instance of a recurring component.
-        attr_reader :sequence
-        ##
-        # @param [ActiveSupport::TimeWithZone] orig_start the DATE-TIME value is set to the time when the original
-        #       recurrence instance would occur.
-        # @param [String] uid the unique identifier of the base_component.
-        # @param [Integer] sequence identifies a particular instance of a recurring component.
-        def initialize(orig_start, uid, sequence)
-          @orig_start = orig_start
-          @uid        = uid
-          @sequence   = sequence
-        end
-
-        ##
-        # Compares this occurrence to the other.
-        # Comparison is on:
-        #
-        # 1. @dtstart
-        # 2. @uid
-        # 3. inverse @sequence (highest first)
-        #
-        # @param [ExtendedRecurrenceID] other the other occurrence
-        # @return [Integer] -1, 0, +1 if less equal or greater
-        def <=>(other)
-          return nil unless other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
-          start_compare = @orig_start <=> other.orig_start
-          return start_compare unless start_compare.zero?
-
-          uid_compare = @uid <=> other.uid
-          return uid_compare unless uid_compare.zero?
-
-          other.sequence <=> @sequence
-        end
-
-        ##
-        # @param [ExtendedRecurrenceID] other the other occurrence to compare to.
-        # @return [Boolean] true if both objects refer to the same event.
-        def same_event?(other)
-          return nil unless other.is_a?(Icalendar::Rrule::Occurrence::ExtendedRecurrenceID)
-          (@orig_start == other.orig_start) && (@uid == other.uid)
-        end
-      end
-
-      ##
       # @return [Icalendar::Calendar] the calendar this occurrence is taken from.
       attr_reader :base_calendar
       ##

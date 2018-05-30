@@ -22,6 +22,11 @@ Metrics/MethodLength:
 Naming/FileName:
   Exclude:
      - 'lib/icalendar-rrule.rb'
+     - 'lib/icalendar/schedulable-component.rb'
+     - 'lib/icalendar/scannable-calendar.rb'
+     - 'spec/icalendar/scannable-calendar_spec.rb'
+     - 'spec/icalendar/schedulable-component_spec.rb'
+
 
 
 Metrics/ModuleLength:

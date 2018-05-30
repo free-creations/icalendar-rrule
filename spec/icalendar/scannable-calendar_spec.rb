@@ -262,10 +262,38 @@ RSpec.describe Icalendar::Scannable do
     end
   end
   context 'when the calendar uses RECURRENCE-ID to overwrite some occurrences' do
+    #
+    # The fixture presents a calendar with two entries.
+    #
+    # The *first entry* is an event that repeats weekly.this will generate
+    # three occurrences at 2018-05-26, 2018-06-02 and 2018-06-09 all starting at 19:00.
+    #
+    # The *second entry* overwrites the middle occurrence of above generated occurrences
+    # with an event starting at 18:00.
+    #
+    #
+    # BEGIN:VEVENT
+    # UID:6ec55b23-ae99-4239-bc75-bb52e9a70b22
+    #
+    # RRULE:FREQ=WEEKLY;UNTIL=20180609T170000Z
+    #
+    # DTSTART;TZID=Europe/Berlin:20180526T190000
+    # END:VEVENT
+    # ................
+    #
+    # BEGIN:VEVENT
+    # UID:6ec55b23-ae99-4239-bc75-bb52e9a70b22
+    #
+    # RECURRENCE-ID;TZID=Europe/Berlin:20180602T190000
+    # DTSTART;TZID=Europe/Berlin:20180602T180000
+    # END:VEVENT
+
     subject(:calendar) { FixtureHelper.parse_to_calendar('exception.ics') }
 
     let(:begin_time) { Date.parse('2018-05-25') }
     let(:end_time)   { Date.parse('2018-06-10') }
+
+    let(:scan_result) { calendar.scan(begin_time, end_time, %i[events]) }
 
     # rubocop:disable RSpec/MultipleExpectations
     specify 'the calendar provided by the fixture contains exactly *one* event' do
@@ -276,9 +304,18 @@ RSpec.describe Icalendar::Scannable do
     end
     # rubocop:enable RSpec/MultipleExpectations
 
-    it '#scan returns three event-occurrences in the time span' do
-      skip('not yet implemented')
-      expect(calendar.scan(begin_time, end_time, %i[events]).size).to eq(3)
+    specify '#scan returns three event-occurrences in the time span' do
+      expect(scan_result.size).to eq(3)
+    end
+
+    specify 'the first event returned by #scan starts at 19:00' do
+      expect(scan_result[0].start_time.to_s).to eq('2018-05-26 19:00:00 +0200')
+    end
+    specify 'the second event returned by #scan starts at 18:00' do
+      expect(scan_result[1].start_time.to_s).to eq('2018-06-02 18:00:00 +0200')
+    end
+    specify 'the third event returned by #scan starts at 19:00' do
+      expect(scan_result[2].start_time.to_s).to eq('2018-06-09 19:00:00 +0200')
     end
   end
 end

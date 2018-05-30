@@ -182,5 +182,14 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       # RECURRENCE-ID;TZID=Europe/Berlin:20180602T190000
       expect(base_event._overwritten_dates.first.to_s).to eq('2018-06-02 19:00:00 +0200')
     end
+
+    # rubocop:disable RSpec/MultipleExpectations
+    specify '#_parent_set should be an array of two events' do
+      expect(base_event._parent_set).to be_an(Array)
+      expect(base_event._parent_set.size).to eq(2)
+      expect(base_event._parent_set.first).to be_an(Icalendar::Event)
+      expect(base_event._parent_set[-1]).to be_an(Icalendar::Event)
+    end
+    # rubocop:enable RSpec/MultipleExpectations
   end
 end
