@@ -47,7 +47,7 @@ scan = calendar.scan(begin_time, closing_time)
 
 
 scan.each do |occurrence|
-  puts "#{occurrence.occ_start.strftime('%a. %b. %d. %k:%M')}-#{occurrence.occ_end.strftime('%k:%M')}"
+  puts "#{occurrence.start_time.strftime('%a. %b. %d. %k:%M')}-#{occurrence.end_time.strftime('%k:%M')}"
 end
 ```
 This will produce:

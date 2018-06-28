@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'icalendar/rrule'
+require 'icalendar-rrule'
 
 require 'spec_support/fixture_helper'
 
