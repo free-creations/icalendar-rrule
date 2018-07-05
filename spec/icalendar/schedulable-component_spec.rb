@@ -8,6 +8,7 @@
 # to inquire for the added method. We must check, that calling the new method, does
 # not throw a `NoMethodError`.
 #
+# rubocop:disable RSpec/PredicateMatcher
 RSpec.context 'when `using Icalendar::Schedulable`' do
   using Icalendar::Schedulable # <-- that's what we are testing here
 
@@ -175,7 +176,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     specify 'has method #_overwritten_dates' do
       expect(base_event._overwritten_dates).to be_a(Array)
     end
-    specify '#_overwritten_dates contains one item' do
+    specify '#_overwritten_dates contains one item (for exception.ics)' do
       expect(base_event._overwritten_dates.size).to eq(1)
     end
     specify '#_overwritten_dates contains one item for 2018-06-02 19:00:00 +0200' do
@@ -192,4 +193,47 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
     # rubocop:enable RSpec/MultipleExpectations
   end
+
+  context 'with an event that is not longer than one day and only the date is given' do
+    subject(:one_full_day) do
+      FixtureHelper.parse_to_first_event('all_day-multi_day.ics')
+    end
+
+    specify 'the first event in `all_day-multi_day.ics` is an all days event' do
+      expect(one_full_day.all_day?).to be_truthy
+    end
+
+    specify 'the first event in `all_day-multi_day.ics` is not a multi day event' do
+      expect(one_full_day.multi_day?).to be_falsey
+    end
+  end
+
+  context 'with an event that lasts one hour' do
+    subject(:one_hour) do
+      FixtureHelper.parse_to_n_th_event('all_day-multi_day.ics', 1)
+    end
+
+    specify 'the second event in `all_day-multi_day.ics` is not an all days event' do
+      expect(one_hour.all_day?).to be_falsey
+    end
+
+    specify 'the second event in `all_day-multi_day.ics` is not a multi day event' do
+      expect(one_hour.multi_day?).to be_falsey
+    end
+  end
+
+  context 'with an event that spans over two days' do
+    subject(:two_days) do
+      FixtureHelper.parse_to_n_th_event('all_day-multi_day.ics', 2)
+    end
+
+    specify 'the third event in `all_day-multi_day.ics` is not an all days event' do
+      expect(two_days.all_day?).to be_falsey
+    end
+
+    specify 'the third event in `all_day-multi_day.ics` is a multi day event' do
+      expect(two_days.multi_day?).to be_truthy
+    end
+  end
 end
+# rubocop:enable RSpec/PredicateMatcher

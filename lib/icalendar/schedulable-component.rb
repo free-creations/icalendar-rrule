@@ -11,6 +11,15 @@ module Icalendar
   # __Note:__ _Refinement_  is a Ruby core feature since Ruby 2.0.
   # @see: https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html
   #
+  # There are some shortcomings, the
+  # [documentation](http://ruby-doc.org/core-2.2.2/doc/syntax/refinements_rdoc.html#label-Indirect+Method+Calls)
+  # says:
+  #
+  # >When using indirect method access such as Kernel#send, Kernel#method or Kernel#respond_to?
+  # >refinements are not honored for the caller context during method lookup.
+  # >
+  # >This behavior may be changed in the future.
+  #
   # The purpose of this module is:
   #
   # - normalise the handling of date and time by using ActiveSupport::TimeWithZone everywhere.
@@ -138,6 +147,21 @@ module Icalendar
         else
           _to_time_with_zone(NULL_TIME + _duration_seconds)
         end
+      end
+
+      ##
+      # Heuristic to determine whether the event is scheduled
+      # for a date without precising the exact time of day.
+      # @return [Boolean] true if the component is scheduled for a date, false otherwise.
+      def all_day?
+        _dtstart.is_a?(Icalendar::Values::Date) ||
+          (start_time == start_time.beginning_of_day && end_time == end_time.beginning_of_day)
+      end
+
+      ##
+      # @return [Boolean] true if the duration of the event spans more than one day.
+      def multi_day?
+        start_time.next_day.beginning_of_day < end_time
       end
 
       ##

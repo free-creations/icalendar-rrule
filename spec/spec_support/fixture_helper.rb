@@ -21,6 +21,22 @@ module FixtureHelper
 
   ##
   # Reads a file and constructs an event-object from
+  # the *event* definition it finds at the index position in the first calendar of the given file.
+  #
+  # @param [String] file_name the name of a file in `spec/spec_support/fixtures/`
+  # @param [Number] index the event to look for
+  def self.parse_to_n_th_event(file_name, index)
+    calendar = parse_to_calendar(file_name)
+    events = Array(calendar.events)
+    raise "#{file_name} has has no events" if events.empty?
+    result = events[index]
+    raise "Error parsing file #{file_name} got #{result.class}, expected Icalendar::Event" \
+      unless result.is_a?(Icalendar::Event)
+    result
+  end
+
+  ##
+  # Reads a file and constructs an event-object from
   # the first *event* definition it finds in the first calendar of the given file.
   #
   # @param [String] file_name the name of a file in `spec/spec_support/fixtures/`
