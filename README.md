@@ -63,7 +63,7 @@ Fri. Apr. 27.  8:30-17:00
 
 - [iCalendar Gem](https://github.com/icalendar/icalendar).
 - [Ice cube](https://github.com/seejohnrun/ice_cube)
-- **Active Support** see also 
+- **Active Support:** see also 
   [How to Load Core Extensions](http://edgeguides.rubyonrails.org/active_support_core_extensions.html#how-to-load-core-extensions)
 
 ## Links
