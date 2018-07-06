@@ -194,6 +194,16 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     # rubocop:enable RSpec/MultipleExpectations
   end
 
+  context 'with an event that is part of a calendar with timezone' do
+    subject(:event_with_parent_timezone) do
+      FixtureHelper.parse_to_first_event('all_day-multi_day.ics')
+    end
+
+    specify 'the function `_extract_calendar_timezone`returns a timezone' do
+      expect(event_with_parent_timezone._extract_calendar_timezone).to be_truthy
+    end
+  end
+
   context 'with an event that is not longer than one day and only the date is given' do
     subject(:one_full_day) do
       FixtureHelper.parse_to_first_event('all_day-multi_day.ics')
@@ -233,6 +243,19 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
     specify 'the third event in `all_day-multi_day.ics` is a multi day event' do
       expect(two_days.multi_day?).to be_truthy
+    end
+  end
+  context 'with an alternative all day event' do
+    subject(:one_full_day) do
+      FixtureHelper.parse_to_n_th_event('all_day-multi_day.ics', 3)
+    end
+
+    specify 'the first event in `all_day-multi_day.ics` is an all days event' do
+      expect(one_full_day.all_day?).to be_truthy
+    end
+
+    specify 'the first event in `all_day-multi_day.ics` is not a multi day event' do
+      expect(one_full_day.multi_day?).to be_falsey
     end
   end
 end

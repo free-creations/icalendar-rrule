@@ -355,10 +355,35 @@ module Icalendar
         timezone ||= _extract_timezone(_dtend)
         timezone ||= _extract_timezone(_dtstart)
         timezone ||= _extract_timezone(_due)
+        timezone ||= _extract_calendar_timezone
 
         # as a last resort we'll use the Coordinated Universal Time (UTC).
         timezone || ActiveSupport::TimeZone['UTC']
       end
+
+      ##
+      # Try to determine this components time zone by inspecting the parents calendar.
+      # @return[ActiveSupport::TimeZone, nil] the first valid timezone found in the
+      #    parent calender or nil if none could be found.
+      #
+      # rubocop:disable Metrics/CyclomaticComplexity
+      def _extract_calendar_timezone
+        return nil unless parent
+        return nil unless parent.is_a?(Icalendar::Calendar)
+        calendar_timezones = parent.timezones
+        calendar_timezones.each do |tz|
+          break unless tz.valid?(true)
+          ugly_tzid = tz.tzid
+          break unless ugly_tzid
+          tzid = Array(ugly_tzid).first.to_s.gsub(/^(["'])|(["'])$/, '')
+          tz_found = ActiveSupport::TimeZone[tzid]
+          return tz_found if tz_found
+        end
+        nil
+      rescue StandardError
+        nil
+      end
+      # rubocop:enable Metrics/CyclomaticComplexity
 
       ##
       # Get the timezone from the given object trying different methods to find an indication in the object.
