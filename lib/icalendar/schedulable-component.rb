@@ -243,6 +243,7 @@ module Icalendar
         _parent_set.each do |event|
           next unless uid == event.uid
           next unless event._is_substitute?
+          next if _recurrence_id == event._recurrence_id # do not add myself
           result << event._recurrence_id
         end
         result

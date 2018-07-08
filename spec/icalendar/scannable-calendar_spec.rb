@@ -296,7 +296,7 @@ RSpec.describe Icalendar::Scannable do
     let(:scan_result) { calendar.scan(begin_time, end_time, %i[events]) }
 
     # rubocop:disable RSpec/MultipleExpectations
-    specify 'the calendar provided by the fixture contains exactly *one* event' do
+    specify 'the calendar provided by the fixture contains two events: a recurring and an overwriting one' do
       # ..verify the fixture.
       expect(calendar.events.size).to eq(2)
       expect(calendar.events[0].rrule).to be_truthy
@@ -317,5 +317,94 @@ RSpec.describe Icalendar::Scannable do
     specify 'the third event returned by #scan starts at 19:00' do
       expect(scan_result[2].start_time.to_s).to eq('2018-06-09 19:00:00 +0200')
     end
+  end
+
+  context 'when the calendar uses RECURRENCE-ID to overwrite some occurrences (second case)' do
+    #
+    # The fixture presents a calendar with two entries.
+    #
+    # The *first entry* is an event that repeats weekly.this will generate
+    # three occurrences at 2018-05-26, 2018-06-02 and 2018-06-09 all starting at 19:00.
+    #
+    # The *second entry* overwrites the middle occurrence of above generated occurrences
+    # with an event *also starting at 19:00*, but with a different summary.
+    #
+    #
+    # BEGIN:VEVENT
+    # UID:6ec55b23-ae99-4239-bc75-bb52e9a70b22
+    #
+    # RRULE:FREQ=WEEKLY;UNTIL=20180609T170000Z
+    #
+    # DTSTART;TZID=Europe/Berlin:20180526T190000
+    # END:VEVENT
+    # ................
+    #
+    # BEGIN:VEVENT
+    # UID:6ec55b23-ae99-4239-bc75-bb52e9a70b22
+    #
+    # RECURRENCE-ID;TZID=Europe/Berlin:20180602T190000
+    # DTSTART;TZID=Europe/Berlin:20180602T180000
+    # END:VEVENT
+
+    subject(:calendar) { FixtureHelper.parse_to_calendar('exception2.ics') }
+
+    let(:begin_time) { Date.parse('2018-05-25') }
+    let(:end_time)   { Date.parse('2018-06-10') }
+
+    let(:scan_result) { calendar.scan(begin_time, end_time, %i[events]) }
+
+    # rubocop:disable RSpec/MultipleExpectations
+    specify 'the calendar provided by the fixture contains two events: a recurring and an overwriting one' do
+      # ..verify the fixture.
+      expect(calendar.events.size).to eq(2)
+      expect(calendar.events[0].rrule).to be_truthy
+      expect(calendar.events[1].recurrence_id).to be_truthy
+    end
+    # rubocop:enable RSpec/MultipleExpectations
+
+    specify '#scan returns three event-occurrences in the time span' do
+      expect(scan_result.size).to eq(3)
+    end
+
+    specify 'the first event returned by #scan starts at 19:00' do
+      expect(scan_result[0].start_time.to_s).to eq('2018-05-26 19:00:00 +0200')
+    end
+    specify 'the second event returned by #scan also starts at 19:00' do
+      expect(scan_result[1].start_time.to_s).to eq('2018-06-02 19:00:00 +0200')
+    end
+    specify 'the second event returned by #scan has a different summary text' do
+      expect(scan_result[1].summary).to eq('the exception: this text is different.')
+    end
+    specify 'the third event returned by #scan again starts at 19:00' do
+      expect(scan_result[2].start_time.to_s).to eq('2018-06-09 19:00:00 +0200')
+    end
+  end
+
+  context 'when fixing the recurrence-bug' do
+    using Icalendar::Schedulable
+
+    subject(:calendar) { FixtureHelper.parse_to_calendar('recurrence_bug.ics') }
+
+    let(:begin_time) { Date.parse('2018-07-09') }
+    let(:end_time)   { Date.parse('2018-07-11') }
+
+    let(:scan_result) { calendar.scan(begin_time, end_time, %i[events]) }
+
+    # rubocop:disable RSpec/MultipleExpectations
+    specify 'the calendar provided by the fixture contains an event with given description' do
+      # ..verify the fixture.
+      i = calendar.events.find_index do |ev|
+        ev.description.to_s.eql?('Letzte Chorprobe vor Anna-Lenas Ferien.')
+      end
+      expect(i).to be_truthy
+      expect(calendar.events[i].start_time.to_s).to eq('2018-07-10 20:00:00 +0200')
+    end
+
+    specify 'the scan also contains an event with the given description' do
+      expect(scan_result.length).to be 1
+      expect(scan_result.first.description.to_s).to eq('Letzte Chorprobe vor Anna-Lenas Ferien.')
+      expect(scan_result.first.start_time.to_s).to eq('2018-07-10 20:00:00 +0200')
+    end
+    # rubocop:enable RSpec/MultipleExpectations
   end
 end
