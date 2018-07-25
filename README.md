@@ -1,6 +1,6 @@
 # icalendar-rrule
 This is an add-on to the [iCalendar Gem](https://github.com/icalendar/icalendar).
-It makes it easier to iterate through a calendar with __repeating events__.
+It helps to handle calendars in iCalendar format with __repeating events__.
 
 According to the [RFC 5545](https://tools.ietf.org/html/rfc5545) specification, 
 repeating events are represented by one single entry, the repetitions being shown by
@@ -27,23 +27,42 @@ and run `bundle install` from your shell.
 For explanations on how to parse and process RFC 5545 compatible calendars, please
 have a look at the [iCalendar gem](http://github.com/icalendar/icalendar).
 
+To use this gem we'll first have to require it: 
+
+`require 'icalendar-rrule'`
+
+Further we have to declare the use of the "Scannable" namespace. 
+This is called a "[Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)"
+which is a _new Ruby core feature_ since Ruby 2.0.
+
+`using Icalendar::Scannable`
+
+Now we can inquire a calendar for all events (or tasks) within in a time span. 
+
+`scan = calendar.scan(begin_time, closing_time)`
+
+Here is a simple example:
 ```ruby
-require 'icalendar-rrule'
+require 'icalendar-rrule' # this will require all needed GEMS including the icalendar gem
 
-using Icalendar::Scannable
+using Icalendar::Scannable # this will make the function Icalendar::Calendar.scan available
 
+# we create a calendar with one single event
 calendar = Icalendar::Calendar.new
 calendar.event do |e|
+  # the event starts on January first and lasts from half past eight to five o' clock
   e.dtstart     =  DateTime.civil(2018, 1, 1, 8, 30)
   e.dtend       =  DateTime.civil(2018, 1, 1, 17, 00)
   e.summary     = 'Working'
+  # the event repeats all working days
   e.rrule       = 'FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR'
 end
 
 begin_time =   Date.new(2018, 4, 22)
 closing_time = Date.new(2018, 4, 29)
 
-scan = calendar.scan(begin_time, closing_time)
+# we are interested in the calendar entries in the last week of April
+scan = calendar.scan(begin_time, closing_time) # that's where the magic happens
 
 
 scan.each do |occurrence|
@@ -59,6 +78,10 @@ Wed. Apr. 25.  8:30-17:00
 Thu. Apr. 26.  8:30-17:00 
 Fri. Apr. 27.  8:30-17:00 
 ```
+
+For a more elaborate example, please have a look at 
+<https://github.com/free-creations/sk_calendar>
+
 ## Used Libraries
 
 - [iCalendar Gem](https://github.com/icalendar/icalendar).
