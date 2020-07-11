@@ -31,7 +31,7 @@ Gem::Specification.new do |gem_spec|
   gem_spec.add_dependency 'ice_cube', '>= 0.16'
 
   gem_spec.add_development_dependency 'bundler', '~> 1.16'
-  gem_spec.add_development_dependency 'rake', '~> 10.0'
+  gem_spec.add_development_dependency 'rake', '>= 12.3.3'
   gem_spec.add_development_dependency 'rspec', '~> 3.7'
   gem_spec.add_development_dependency 'rubocop', '~> 0.55.0'
   gem_spec.add_development_dependency 'rubocop-rspec', '~> 1.24'
