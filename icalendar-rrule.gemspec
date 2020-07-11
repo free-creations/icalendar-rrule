@@ -18,6 +18,10 @@ Gem::Specification.new do |gem_spec|
   gem_spec.homepage      = 'https://github.com/free-creations/icalendar-rrule'
   gem_spec.license       = 'MIT'
 
+  gem_spec.metadata['homepage_uri'] = gem_spec.homepage
+  gem_spec.metadata['source_code_uri'] = gem_spec.homepage
+  gem_spec.metadata['bug_tracker_uri'] = 'https://github.com/free-creations/icalendar-rrule/issues'
+
   gem_spec.files = `git ls-files -z`.split("\x0").reject do |f|
     f.match(%r{^(test|spec|features)/})
   end
