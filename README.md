@@ -6,7 +6,8 @@ According to the [RFC 5545](https://tools.ietf.org/html/rfc5545) specification,
 repeating events are represented by one single entry, the repetitions being shown by
 an attached _repeat rule_. Thus when we iterate through a calendar with, for example,
 a daily repeating event, 
-we'll only see one single event where for a month there would be many more events in reality.
+we'll only see one single entry in the Calendar.
+Although, for a whole month there would be 30 or 31 events in reality.
 
 The _icalendar-rrule gem_ patches an additional function called `scan` into the _iCalendar Gem_. 
 The _scan_ shows all events by unrolling the _repeat rule_ for a 
@@ -32,8 +33,9 @@ To use this gem we'll first have to require it:
 `require 'icalendar-rrule'`
 
 Further we have to declare the use of the "Scannable" namespace. 
-This is called a "[Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)"
-which is a _new Ruby core feature_ since Ruby 2.0.
+This is called a "[Refinement](https://ruby-doc.org/core-2.5.0/doc/syntax/refinements_rdoc.html)",
+a _new Ruby core feature_ since Ruby 2.0, that makes "monkey patching" a bit 
+more acceptable.
 
 `using Icalendar::Scannable`
 
