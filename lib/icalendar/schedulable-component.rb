@@ -424,7 +424,8 @@ module Icalendar
       # @note Since icalendar 2.12.1, `Icalendar::DowncasedHash` no longer delegates all
       #   methods to `Hash`. Calling `fetch` on `ical_value.ical_params` may raise
       #   `NoMethodError`. To maintain compatibility, normalize params to a plain Hash
-      #   before accessing keys.      # @param [Icalendar::Value] ical_value an ical value that (probably) supports a time zone identifier.
+      #   before accessing keys.
+      # @param [Icalendar::Value] ical_value an ical value that (probably) supports a time zone identifier.
       # @return [ActiveSupport::TimeZone, nil] the timezone referred to by the ical_value or nil.
       # @api private
       def _extract_ical_time_zone(ical_value)
