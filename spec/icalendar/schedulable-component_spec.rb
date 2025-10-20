@@ -17,6 +17,10 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       described_class.new('event_todo_or_whatsoever')
     end
 
+    let(:ical_date_with_symbol_tzid) do
+      Icalendar::Values::DateTime.new('20180101T100000', { tzid: 'America/New_York' })
+    end
+
     let(:ical_date_with_tzid) do
       Icalendar::Values::DateTime.new('20180101T100000', tzid: 'America/New_York')
     end
@@ -40,6 +44,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     # rubocop:disable RSpec/MultipleExpectations
     specify '._extract_ical_time_zone' do
       expect(component._extract_ical_time_zone(ical_date_with_tzid).name).to eq('America/New_York')
+      expect(component._extract_ical_time_zone(ical_date_with_symbol_tzid).name).to eq('America/New_York')
       expect(component._extract_ical_time_zone(ical_date_without_tzid)).to be_nil
       expect(component._extract_ical_time_zone(ruby_date)).to be_nil
     end
