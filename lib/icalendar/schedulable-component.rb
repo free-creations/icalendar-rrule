@@ -421,13 +421,24 @@ module Icalendar
 
       ##
       # Get the timezone from the given object, assuming it can be extracted from ical params.
+      # @note Since icalendar 2.12.1, `Icalendar::DowncasedHash` no longer delegates all
+      #   methods to `Hash`. Calling `fetch` on `ical_value.ical_params` may raise
+      #   `NoMethodError`. To maintain compatibility, normalize params to a plain Hash
+      #   before accessing keys.
       # @param [Icalendar::Value] ical_value an ical value that (probably) supports a time zone identifier.
       # @return [ActiveSupport::TimeZone, nil] the timezone referred to by the ical_value or nil.
       # @api private
       def _extract_ical_time_zone(ical_value)
         return nil unless ical_value.is_a?(Icalendar::Value)
         return nil unless ical_value.respond_to?(:ical_params)
-        ugly_tzid = ical_value.ical_params.fetch('tzid', nil)
+
+        # Normalize DowncasedHash (icalendar >= 2.12.1) to a plain Hash before lookup.
+        params = ical_value.ical_params
+        ph = params.respond_to?(:to_h) ? params.to_h : (Hash.try_convert(params) || {})
+
+        # Prefer string key, but also check symbol key for safety.
+        ugly_tzid = ph['tzid'] || ph[:tzid]
+
         return nil if ugly_tzid.nil?
         tzid = Array(ugly_tzid).first.to_s.gsub(/^(["'])|(["'])$/, '')
         ActiveSupport::TimeZone[tzid]
