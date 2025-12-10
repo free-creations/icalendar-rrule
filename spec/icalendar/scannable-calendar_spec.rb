@@ -233,8 +233,12 @@ RSpec.describe Icalendar::Scannable do
     specify 'the calendar provided by the fixture contains exactly *one* event' do
       # ..verify the fixture.
       expect(calendar.events.size).to eq(1)
-      expect(calendar.events[0].rdate[0]).to be_a_kind_of(Icalendar::Values::Array)
-      expect(calendar.events[0].rdate[0].size).to eq(2)
+
+      rdate_values = Array(calendar.events[0].rdate).flatten
+
+      expect(rdate_values.size).to eq(2)
+      expect(rdate_values.first.to_date).to eq(Date.new(2018, 6, 1))
+      expect(rdate_values.last.to_date).to eq(Date.new(2018, 6, 8))
     end
     # rubocop:enable RSpec/MultipleExpectations
 
