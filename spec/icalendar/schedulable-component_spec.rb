@@ -42,10 +42,16 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
 
     # rubocop:disable RSpec/MultipleExpectations
-    specify '._extract_ical_time_zone' do
+    specify '._extract_ical_time_zone_with_tzid' do
       expect(component._extract_ical_time_zone(ical_date_with_tzid).name).to eq('America/New_York')
+    end
+    specify '._extract_ical_time_zone_with_symbol_tzid' do
       expect(component._extract_ical_time_zone(ical_date_with_symbol_tzid).name).to eq('America/New_York')
+    end
+    specify '._extract_ical_time_zone_without_tzid' do
       expect(component._extract_ical_time_zone(ical_date_without_tzid)).to be_nil
+    end
+    specify '._extract_ical_time_zone_for_ruby_date' do
       expect(component._extract_ical_time_zone(ruby_date)).to be_nil
     end
 
