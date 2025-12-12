@@ -96,6 +96,33 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._to_time_with_zone(ruby_date).to_date).to eq(ruby_date)
     end
 
+    # Test for Ruby Time-Objekt with local timezone
+    let(:ruby_time_cet) do
+      # Simulate CET timezone (UTC+1 in winter)
+      Time.new(2018, 1, 1, 8, 30, 0, '+01:00')
+    end
+
+    let(:cet_timezone) do
+      ActiveSupport::TimeZone['Berlin']  # CET/CEST timezone
+    end
+
+    specify('._to_time_with_zone preserves timezone from Ruby Time object') do
+      result = component._to_time_with_zone(ruby_time_cet)
+      expect(result).to be_a(ActiveSupport::TimeWithZone)
+      # The hour should remain 8:30, not shift to 7:30
+      expect(result.hour).to eq(8)
+      expect(result.min).to eq(30)
+    end
+
+    specify('._to_time_with_zone with explicit target timezone converts Ruby Time correctly') do
+      result = component._to_time_with_zone(ruby_time_cet, cet_timezone)
+      expect(result).to be_a(ActiveSupport::TimeWithZone)
+      expect(result.hour).to eq(8)
+      expect(result.min).to eq(30)
+      expect(result.time_zone.name).to eq('Berlin')
+    end
+
+
     specify('.schedule returns an `IceCube::Schedule`') do
       expect(component.schedule).to be_a(IceCube::Schedule)
     end

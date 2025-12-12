@@ -299,6 +299,9 @@ module Icalendar
       #
       # rubocop:disable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
       def _to_time_with_zone(date_time, timezone = nil)
+        # Try to extract timezone from the date_time parameter first
+        timezone ||= _extract_timezone(date_time)
+        # Fall back to component timezone if no timezone could be extracted
         timezone ||= component_timezone
 
         # For Icalendar::Values::DateTime, we can extract the ical value. Which probably is already what we want.
@@ -324,6 +327,10 @@ module Icalendar
 
         elsif date_time_value.is_a?(Date)
           return _date_to_time_with_zone(date_time_value, timezone)
+
+        elsif date_time_value.is_a?(Time)
+          # Preserve Time's timezone by converting to UTC first, then to target timezone
+          return timezone.at(date_time_value.getutc)
 
         elsif date_time_value.respond_to?(:to_time)
           return timezone.at(date_time_value.to_time)
@@ -392,6 +399,7 @@ module Icalendar
       # @return [ActiveSupport::TimeZone, nil] the timezone used by the parameter or nil if no timezone has been set.
       # @api private
       def _extract_timezone(date_time)
+        timezone ||= _extract_ruby_time_zone(date_time)  # NEW: extract from Ruby Time
         timezone ||= _extract_ical_time_zone(date_time) # try with ical parameter
         timezone ||= _extract_act_sup_timezone(date_time) # is the given value already ActiveSupport::TimeWithZone?
         timezone || _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
@@ -417,6 +425,26 @@ module Icalendar
         return nil unless ical_value.is_a?(Icalendar::Value)
         return nil unless ical_value.value.is_a?(ActiveSupport::TimeWithZone)
         ical_value.value.time_zone
+      end
+
+      ##
+      # Extracts the corresponding ActiveSupport timezone from a given Ruby Time object.
+      # This method calculates the timezone offset from the provided Time object
+      # and matches it to the equivalent ActiveSupport::TimeZone.
+      #
+      # If the input is not a Time object or an error occurs during processing,
+      # the method returns nil.
+      #
+      # @param date_time [Object] the object to extract the timezone from. Should be an instance of Time.
+      # @return [ActiveSupport::TimeZone, nil] the matched ActiveSupport::TimeZone or nil if no match is found or an error is raised.
+      # @api private
+      def _extract_ruby_time_zone(date_time)
+        return nil unless date_time.is_a?(Time)
+        # Get the timezone offset from the Time object and find a matching ActiveSupport timezone
+        offset_seconds = date_time.utc_offset
+        ActiveSupport::TimeZone[offset_seconds]
+      rescue StandardError
+        nil
       end
 
       ##
