@@ -300,4 +300,42 @@ RSpec.describe Icalendar::Rrule::Occurrence do
     end
   end
 
+  context 'VARIATION with recurring events (RRULE expansion)' do
+    using Icalendar::Schedulable
+    using Icalendar::Scannable
+
+    context 'VARIATION when event has RRULE and explicit timezone' do
+      subject(:calendar_with_rrule) do
+        calendar = Icalendar::Calendar.new
+        # No calendar timezone set
+
+        event = Icalendar::Event.new
+        event.dtstart = Icalendar::Values::DateTime.new('20180101T090000', tzid: 'America/New_York')
+        event.dtend = Icalendar::Values::DateTime.new('20180101T110000', tzid: 'America/New_York')
+        # event.rrule = Icalendar::Values::Recur.new('FREQ=DAILY;BYDAY=MO,FR')
+        event.rrule = 'FREQ=DAILY;BYDAY=MO,FR'
+        event.summary = 'Daily Meeting'
+
+        calendar.add_event(event)
+        calendar
+      end
+
+      it 'preserves timezone across all occurrences' do
+        scan_start = Date.new(2018, 2, 1)
+        scan_end =  Date.new(2018, 2, 10)
+        occurrences = calendar_with_rrule.scan(scan_start, scan_end)
+
+        occurrences.each_with_index do |occ, i|
+          expect(occ.start_time.time_zone.name).to eq('America/New_York')
+          expect(occ.start_time.hour).to eq(9)
+          expect(occ.start_time.strftime('%H:%M')).to eq('09:00')
+
+          expect(occ.end_time.time_zone.name).to eq('America/New_York')
+          expect(occ.end_time.hour).to eq(11)
+          expect(occ.end_time.strftime('%H:%M')).to eq('11:00')
+        end
+      end
+    end
+  end
+
 end

@@ -52,10 +52,21 @@ module Icalendar
         result = []
         components.each do |comp|
           occurrences = comp.schedule.occurrences_between(begin_time, closing_time)
+
+          # Get the target timezone from the component
+          target_tz = comp.start_time.time_zone
+
           occurrences.each do |oc|
-            # Convert IceCube times back to TimeWithZone in correct timezone
-            start_tz = oc.start_time.in_time_zone(comp.start_time.time_zone)
-            end_tz = oc.end_time.in_time_zone(comp.end_time.time_zone)
+            # Interpret the time components AS IF they're already in target timezone
+            # (don't convert, just reconstruct in the right zone)
+            start_tz = target_tz.local(
+              oc.start_time.year, oc.start_time.month, oc.start_time.day,
+              oc.start_time.hour, oc.start_time.min, oc.start_time.sec
+            )
+            end_tz = target_tz.local(
+              oc.end_time.year, oc.end_time.month, oc.end_time.day,
+              oc.end_time.hour, oc.end_time.min, oc.end_time.sec
+            )
 
             new_oc = Icalendar::Rrule::Occurrence.new(self, comp, start_tz, end_tz)
             result << new_oc

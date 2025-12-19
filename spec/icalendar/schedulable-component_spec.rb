@@ -55,15 +55,67 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._extract_ical_time_zone(ruby_date)).to be_nil
     end
 
-    specify '._extract_timezone' do
-      expect(component._extract_timezone(ical_date_with_tzid).name).to eq('America/New_York')
-      expect(component._extract_timezone(ical_date_without_tzid)).to be_nil
-      expect(component._extract_timezone(time_with_zone_date).name).to eq('Hawaii')
-      expect(component._extract_timezone(ruby_date)).to be_nil
-      expect(component._extract_timezone(nil)).to be_nil
+    specify '._extract_explicit_timezone' do
+      expect(component._extract_explicit_timezone(ical_date_with_tzid).name).to eq('America/New_York')
+      expect(component._extract_explicit_timezone(ical_date_without_tzid)).to be_nil
+      expect(component._extract_explicit_timezone(time_with_zone_date).name).to eq('Hawaii')
+      expect(component._extract_explicit_timezone(ruby_date)).to be_nil
+      expect(component._extract_explicit_timezone(nil)).to be_nil
     end
-    specify ' `._unique_timezone` of a Component (without dtstart, dtend and due) is UTC' do
-      expect(component.component_timezone.name).to eq('UTC')
+
+    describe '._extract_calendar_timezone' do
+      using Icalendar::Schedulable
+
+      context 'when calendar has no timezone' do
+        it 'returns nil' do
+          calendar = Icalendar::Calendar.new
+          event = Icalendar::Event.new
+          calendar.add_event(event)
+
+          expect(event._extract_calendar_timezone).to be_nil
+        end
+      end
+
+      context 'when calendar has invalid timezone' do
+        it 'returns nil for non-existent timezone' do
+          calendar = Icalendar::Calendar.new
+          calendar.timezone do |tz|
+            tz.tzid = 'Europe/FooFoo'
+          end
+          event = Icalendar::Event.new
+          calendar.add_event(event)
+
+          expect(event._extract_calendar_timezone).to be_nil
+        end
+      end
+
+      context 'when calendar has valid timezone' do
+        it 'returns the correct timezone' do
+          calendar = Icalendar::Calendar.new
+          calendar.timezone do |tz|
+            tz.tzid = 'America/New_York'
+          end
+          event = Icalendar::Event.new
+          calendar.add_event(event)
+
+          tz = event._extract_calendar_timezone
+          expect(tz).not_to be_nil
+          expect(tz.name).to eq('America/New_York')
+        end
+      end
+    end
+
+
+
+
+
+    specify '._unique_timezone of a Component (without dtstart, dtend and due) uses system timezone or UTC' do
+      tz = component.component_timezone
+      system_offset = Time.now.utc_offset
+
+      expect(tz).to be_a(ActiveSupport::TimeZone)
+      # Should match system offset or be UTC (offset 0)
+      expect([system_offset, 0]).to include(tz.now.utc_offset)
     end
     specify('`.start_time` always returns a `ActiveSupport::TimeWithZone`') do
       expect(component.start_time).to be_a(ActiveSupport::TimeWithZone)
@@ -83,9 +135,12 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(component._to_time_with_zone(ical_date_with_tzid)).to be_a(ActiveSupport::TimeWithZone)
       expect(component._to_time_with_zone(ical_date_with_tzid)).to eq(ical_date_with_tzid)
     end
-    specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an ical_date_without_tzid') do
-      expect(component._to_time_with_zone(ical_date_without_tzid)).to be_a(ActiveSupport::TimeWithZone)
-      expect(component._to_time_with_zone(ical_date_without_tzid)).to eq(ical_date_without_tzid)
+    specify('._to_time_with_zone interprets ical_date_without_tzid as floating time in system timezone') do
+      result = component._to_time_with_zone(ical_date_without_tzid)
+
+      expect(result).to be_a(ActiveSupport::TimeWithZone)
+      expect(result.hour).to eq(ical_date_without_tzid.hour)  # Time is preserved
+      expect(result.min).to eq(ical_date_without_tzid.min)
     end
     specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an time_with_zone_date') do
       expect(component._to_time_with_zone(time_with_zone_date)).to be_a(ActiveSupport::TimeWithZone)

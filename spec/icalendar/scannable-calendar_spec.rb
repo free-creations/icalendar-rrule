@@ -46,11 +46,11 @@ RSpec.describe Icalendar::Scannable do
           expect(occurrence.time_zone.name).to eq('America/New_York')
         end
 
-        it "starts at the same time as its underlying event (eight o'clock in the morning)" do
+        it "starts at the same time as its underlying event (ten o'clock in the morning)" do
           expect(occurrence.start_time.strftime('%H:%M')).to eq('10:00')
         end
 
-        it "ends at the same time as its underlying event (five o'clock in the afternoon)" do
+        it "ends at the same time as its underlying event (eleven o'clock in the morning)" do
           expect(occurrence.end_time.strftime('%H:%M')).to eq('11:00')
         end
       end
