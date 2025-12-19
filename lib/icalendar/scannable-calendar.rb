@@ -53,7 +53,11 @@ module Icalendar
         components.each do |comp|
           occurrences = comp.schedule.occurrences_between(begin_time, closing_time)
           occurrences.each do |oc|
-            new_oc = Icalendar::Rrule::Occurrence.new(self, comp, oc.start_time, oc.end_time)
+            # Convert IceCube times back to TimeWithZone in correct timezone
+            start_tz = oc.start_time.in_time_zone(comp.start_time.time_zone)
+            end_tz = oc.end_time.in_time_zone(comp.end_time.time_zone)
+
+            new_oc = Icalendar::Rrule::Occurrence.new(self, comp, start_tz, end_tz)
             result << new_oc
           end
         end
