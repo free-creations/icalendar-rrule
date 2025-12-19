@@ -264,9 +264,13 @@ module Icalendar
       # Creates a schedule for this event
       # @return [IceCube::Schedule]
       def schedule # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-        schedule = IceCube::Schedule.new
-        schedule.start_time = start_time
-        schedule.end_time = end_time
+        # Calculate duration in seconds
+        duration_seconds = (end_time.to_i - start_time.to_i)  # Integer seconds
+
+        # Create a schedule with start_time and duration
+        # Convert to Ruby Time for IceCube compatibility
+        schedule = IceCube::Schedule.new(start_time.to_time, duration: duration_seconds)
+
         _rrules.each do |rrule|
           ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
@@ -300,7 +304,7 @@ module Icalendar
       # rubocop:disable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
       def _to_time_with_zone(date_time, timezone = nil)
         # Try to extract timezone from the date_time parameter first
-        timezone ||= _extract_timezone(date_time)
+        timezone ||= _extract_explicit_timezone(date_time)
         # Fall back to component timezone if no timezone could be extracted
         timezone ||= component_timezone
 
@@ -320,6 +324,19 @@ module Icalendar
           return date_time_value.in_time_zone(timezone)
 
         elsif date_time_value.is_a?(DateTime)
+          # If DateTime has offset 0, treat it as "floating time" in the target timezone
+          # rather than converting from UTC
+          if date_time_value.offset.zero?
+            return timezone.local(
+              date_time_value.year,
+              date_time_value.month,
+              date_time_value.day,
+              date_time_value.hour,
+              date_time_value.min,
+              date_time_value.sec
+            )
+          end
+          # DateTime with explicit non-zero offset: convert to target timezone
           return date_time_value.in_time_zone(timezone)
 
         elsif date_time_value.is_a?(Icalendar::Values::Date)
@@ -360,10 +377,11 @@ module Icalendar
       # @return [ActiveSupport::TimeZone] the unique timezone used in this component
       def component_timezone
         # let's try sequentially, the first non-nil wins.
-        timezone ||= _extract_timezone(_dtend)
-        timezone ||= _extract_timezone(_dtstart)
-        timezone ||= _extract_timezone(_due)
+        timezone ||= _extract_explicit_timezone(_dtend)
+        timezone ||= _extract_explicit_timezone(_dtstart)
+        timezone ||= _extract_explicit_timezone(_due)
         timezone ||= _extract_calendar_timezone
+        timezone ||= _guess_system_timezone
 
         # as a last resort we'll use the Coordinated Universal Time (UTC).
         timezone || ActiveSupport::TimeZone['UTC']
@@ -380,7 +398,6 @@ module Icalendar
         return nil unless parent.is_a?(Icalendar::Calendar)
         calendar_timezones = parent.timezones
         calendar_timezones.each do |tz|
-          break unless tz.valid?(true)
           ugly_tzid = tz.tzid
           break unless ugly_tzid
           tzid = Array(ugly_tzid).first.to_s.gsub(/^(["'])|(["'])$/, '')
@@ -394,15 +411,24 @@ module Icalendar
       # rubocop:enable Metrics/CyclomaticComplexity
 
       ##
-      # Get the timezone from the given object trying different methods to find an indication in the object.
-      # @param [Object] date_time an object from which we shall determine the time zone.
-      # @return [ActiveSupport::TimeZone, nil] the timezone used by the parameter or nil if no timezone has been set.
+      # Extracts an explicitly set timezone from the given object.
+      #
+      # This method only returns a timezone if it was explicitly specified through:
+      # - An iCalendar TZID parameter (e.g., tzid: 'Europe/Berlin')
+      # - An existing ActiveSupport::TimeWithZone object
+      # - A wrapped value that is already a TimeWithZone
+      #
+      # Unlike _guess_timezone_from_offset, this method does NOT guess or infer
+      # timezones from UTC offsets. It returns nil if no explicit timezone is found.
+      #
+      # @param date_time [Object] an object from which to extract the timezone.
+      #   Typically, an Icalendar::Value, Time, DateTime, or ActiveSupport::TimeWithZone.
+      # @return [ActiveSupport::TimeZone, nil] the explicitly set timezone, or nil if none found.
       # @api private
-      def _extract_timezone(date_time)
-        timezone ||= _extract_ruby_time_zone(date_time)  # NEW: extract from Ruby Time
-        timezone ||= _extract_ical_time_zone(date_time) # try with ical parameter
-        timezone ||= _extract_act_sup_timezone(date_time) # is the given value already ActiveSupport::TimeWithZone?
-        timezone || _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
+      def _extract_explicit_timezone(date_time)
+        timezone ||= _extract_ical_time_zone(date_time)      # try with ical TZID parameter (most specific)
+        timezone ||= _extract_act_sup_timezone(date_time)    # is the given value already ActiveSupport::TimeWithZone?
+        timezone || _extract_value_time_zone(date_time)      # is the ical.value of type ActiveSupport::TimeWithZone?
       end
 
       ##
@@ -428,21 +454,46 @@ module Icalendar
       end
 
       ##
-      # Extracts the corresponding ActiveSupport timezone from a given Ruby Time object.
-      # This method calculates the timezone offset from the provided Time object
-      # and matches it to the equivalent ActiveSupport::TimeZone.
+      # Guesses the corresponding ActiveSupport timezone from a given time object's UTC offset.
+      # This method extracts the UTC offset from objects that respond to :utc_offset
+      # (such as Time, DateTime, or their wrapped values in Icalendar::Values)
+      # and matches it to an equivalent ActiveSupport::TimeZone.
       #
-      # If the input is not a Time object or an error occurs during processing,
+      # Note: Since multiple timezones can share the same UTC offset (e.g., Berlin,
+      # Amsterdam, Paris all use +01:00), this method returns an arbitrary timezone
+      # with the matching offset - hence "guess" rather than "extract".
+      #
+      # If the input does not respond to :utc_offset or an error occurs during processing,
       # the method returns nil.
       #
-      # @param date_time [Object] the object to extract the timezone from. Should be an instance of Time.
-      # @return [ActiveSupport::TimeZone, nil] the matched ActiveSupport::TimeZone or nil if no match is found or an error is raised.
+      # @param date_time [Object] the object to extract the UTC offset from.
+      #   Should respond to :utc_offset (e.g., Time, DateTime, Icalendar::Values::DateTime).
+      # @return [ActiveSupport::TimeZone, nil] an ActiveSupport::TimeZone matching the UTC offset,
+      #   or nil if no match is found or an error occurs.
       # @api private
-      def _extract_ruby_time_zone(date_time)
-        return nil unless date_time.is_a?(Time)
-        # Get the timezone offset from the Time object and find a matching ActiveSupport timezone
-        offset_seconds = date_time.utc_offset
-        ActiveSupport::TimeZone[offset_seconds]
+      def _guess_timezone_from_offset(date_time)
+        # Extract value from Icalendar::Values::DateTime if needed
+        value = date_time.is_a?(Icalendar::Value) && date_time.respond_to?(:value) ? date_time.value : date_time
+
+        return nil unless value.respond_to?(:utc_offset)
+
+        # Get the timezone offset from the Time or DateTime object
+        offset_seconds = value.utc_offset
+        return nil unless offset_seconds.is_a?(Integer)
+
+        # First try: check if the system's default timezone matches the offset
+        system_tz = _guess_system_timezone
+
+        # Return `system timezone` if it matches the offset
+        return system_tz if system_tz && system_tz.now.utc_offset == offset_seconds
+
+        # Fallback: find any timezone matching the offset
+        # For offset 0, always use UTC to avoid ambiguous timezones with DST
+        if offset_seconds.zero?
+          ActiveSupport::TimeZone['UTC']
+        else
+          ActiveSupport::TimeZone[offset_seconds]
+        end
       rescue StandardError
         nil
       end
@@ -471,6 +522,56 @@ module Icalendar
         # warn "[icalendar-rrule] Failed to extract timezone: #{e.message}"
         nil
       end
+
+      ##
+      # Attempts to determine the system's timezone.
+      # Tries multiple methods in order of reliability.
+      #
+      # @return [ActiveSupport::TimeZone, nil] the system timezone or nil if it cannot be determined.
+      # @api private
+      def _guess_system_timezone
+        # Method 1: Rails/ActiveSupport Time.zone (most reliable if set)
+        return Time.zone if Time.zone.is_a?(ActiveSupport::TimeZone)
+
+        # Method 2: ENV['TZ'] environment variable
+        if ENV['TZ']
+          tz = ActiveSupport::TimeZone[ENV['TZ']]
+          return tz if tz
+        end
+
+        # Method 3: Try TZInfo if available (optional dependency)
+        begin
+          require 'tzinfo'
+          tz_identifier = TZInfo::Timezone.default_timezone.identifier
+          tz = ActiveSupport::TimeZone[tz_identifier]
+          return tz if tz
+        rescue LoadError, StandardError
+          # TZInfo not available or failed, continue
+        end
+
+        # Method 4: Read /etc/timezone on Linux (Debian/Ubuntu style)
+        if File.readable?('/etc/timezone')
+          tz_name = File.read('/etc/timezone').strip
+          tz = ActiveSupport::TimeZone[tz_name]
+          return tz if tz
+        end
+
+        # Method 5: Parse /etc/localtime symlink (common on many Unix systems)
+        if File.symlink?('/etc/localtime')
+          link = File.readlink('/etc/localtime')
+          # Extract timezone name from path like /usr/share/zoneinfo/Europe/Berlin
+          if link =~ %r{zoneinfo/(.+)$}
+            tz = ActiveSupport::TimeZone[$1]
+            return tz if tz
+          end
+        end
+
+        nil
+      rescue StandardError
+        nil
+      end
+
+
     end
   end
 end
