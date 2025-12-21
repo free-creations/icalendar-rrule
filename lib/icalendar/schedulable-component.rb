@@ -93,8 +93,15 @@ module Icalendar
       end
 
       ##
-      # @return [Integer] the number of seconds this task will last.
-      #                   If no duration for this task is specified, this function returns zero.
+      # Returns the explicit duration from DURATION property or guessed duration.
+      #
+      # WARNING: This does NOT compute the actual duration between start_time and end_time!
+      # For events with DTEND but no DURATION property, this returns 0 or the guessed duration,
+      # even though the actual duration may be longer.
+      #
+      # To get the actual duration, use: (end_time.to_i - start_time.to_i)
+      #
+      # @return [Integer] explicit duration in seconds, or 0 if not specified
       # @api private
       def _duration_seconds # rubocop:disable Metrics/AbcSize
         return _guessed_duration unless _duration
@@ -165,7 +172,7 @@ module Icalendar
           # Special handling for all-day events without explicit end
           if _dtstart_is_all_day? && _dtend.nil?
             # Stay in date space: add days to the date, not seconds to timestamp
-            start_date = _dtstart.is_a?(Icalendar::Values::Date) ? _dtstart.to_date : _to_time_with_zone(_dtstart).to_date
+            start_date = _dtstart_all_day_event_as_date
             end_date = start_date + (_duration_seconds / SEC_DAY).days
             _date_to_time_with_zone(end_date, component_timezone)
           else
@@ -173,6 +180,24 @@ module Icalendar
           end
         else
           _to_time_with_zone(NULL_TIME + _duration_seconds)
+        end
+      end
+
+      # Extract the date component from dtstart, assuming it's an all-day event
+      # @return [Date]
+      # @api private
+      def _dtstart_all_day_event_as_date
+        raise ArgumentError, "dtstart is not an all-day event" unless _dtstart_is_all_day?
+
+        if _dtstart.is_a?(Icalendar::Values::Date)
+          _dtstart.to_date
+        elsif _dtstart.respond_to?(:to_date)
+          _dtstart.to_date
+        else
+          # Fallback: convert via TimeWithZone
+          time_with_zone = _to_time_with_zone(_dtstart)
+          raise ArgumentError, "Cannot convert dtstart to date" unless time_with_zone.respond_to?(:to_date)
+          time_with_zone.to_date
         end
       end
 
