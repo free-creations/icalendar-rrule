@@ -420,7 +420,6 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       end
     end
 
-    #todo: make this test pass
     context 'when all-day event without DTEND (implicit 1-day duration)' do
       subject(:calendar_with_birthday) do
         calendar = Icalendar::Calendar.new
