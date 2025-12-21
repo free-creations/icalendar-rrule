@@ -103,6 +103,25 @@ module Icalendar
         d.seconds + (d.minutes * SEC_MIN) + (d.hours * SEC_HOUR) + (d.days * SEC_DAY) + (d.weeks * SEC_WEEK)
       end
 
+      # Check if dtstart looks like an all-day event (starts at midnight)
+      # This is used internally to determine if we should apply the 1-day duration rule
+      # @return [Boolean] true if dtstart is a Date or starts at midnight
+      # @api private
+      def _dtstart_is_all_day?
+        # Only apply the 1-day rule to Events, not Tasks
+        return false unless self.is_a?(Icalendar::Event)
+
+        return true if _dtstart.is_a?(Icalendar::Values::Date)
+
+        # If it's a DateTime, check if it's at midnight (00:00:00)
+        if _dtstart.respond_to?(:to_time) || _dtstart.respond_to?(:to_datetime)
+          time = _to_time_with_zone(_dtstart)
+          return time == time.beginning_of_day
+        end
+
+        false
+      end
+
       ##
       # Make an educated guess how long this event might last according to the following definition from RFC 5545:
       #
@@ -114,7 +133,7 @@ module Icalendar
       # @return [Integer] the number of seconds this task might last.
       # @api private
       def _guessed_duration
-        if _dtstart.is_a?(Icalendar::Values::Date) && _dtend.nil? && _duration.nil? && _due.nil?
+        if _dtstart_is_all_day? && _dtend.nil? && _duration.nil? && _due.nil?
           SEC_DAY
         else
           0
@@ -143,7 +162,15 @@ module Icalendar
         elsif _dtend
           _to_time_with_zone(_dtend)
         elsif _dtstart
-          _to_time_with_zone(_dtstart.to_i + _duration_seconds)
+          # Special handling for all-day events without explicit end
+          if _dtstart_is_all_day? && _dtend.nil?
+            # Stay in date space: add days to the date, not seconds to timestamp
+            start_date = _dtstart.is_a?(Icalendar::Values::Date) ? _dtstart.to_date : _to_time_with_zone(_dtstart).to_date
+            end_date = start_date + (_duration_seconds / SEC_DAY).days
+            _date_to_time_with_zone(end_date, component_timezone)
+          else
+            _to_time_with_zone(_dtstart.to_i + _duration_seconds)
+          end
         else
           _to_time_with_zone(NULL_TIME + _duration_seconds)
         end

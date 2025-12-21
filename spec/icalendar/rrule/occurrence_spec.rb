@@ -153,8 +153,8 @@ RSpec.describe Icalendar::Rrule::Occurrence do
 
       # Event without tzid parameter - should inherit from calendar
       event = Icalendar::Event.new
-      event.dtstart = Icalendar::Values::DateTime.new('20180422T143000')  # no tzid!
-      event.dtend = Icalendar::Values::DateTime.new('20180422T153000')    # no tzid!
+      event.dtstart = Icalendar::Values::DateTime.new('20180422T143000') # no tzid!
+      event.dtend = Icalendar::Values::DateTime.new('20180422T153000') # no tzid!
       event.summary = 'Meeting in Caracas'
 
       calendar.add_event(event)
@@ -283,59 +283,212 @@ RSpec.describe Icalendar::Rrule::Occurrence do
         calendar
       end
 
-      it 'preserves timezone across all occurrences' do
-        scan_start = Date.new(2018, 1, 1)
-        scan_end =  Date.new(2018, 1, 10)
-        occurrences = calendar_with_rrule.scan(scan_start, scan_end)
+      let(:scan_start) { Date.new(2018, 1, 1) }
+      let(:scan_end) { Date.new(2018, 1, 10) }
+      let(:occurrences) { calendar_with_rrule.scan(scan_start, scan_end) }
 
-
+      it 'generates 3 occurrences' do
         expect(occurrences.length).to eq(3)
+      end
 
-        occurrences.each_with_index do |occ, i|
-          expect(occ.start_time.time_zone.name).to eq('Europe/Berlin')
-          expect(occ.start_time.hour).to eq(9)
-          expect(occ.end_time.hour).to eq(11)
+      [0, 1, -1].each do |i|
+        describe "occurrence[#{i}]" do
+          subject(:occurrence) { occurrences[i] }
+
+          it 'preserves Berlin timezone' do
+            expect(occurrence.start_time.time_zone.name).to eq('Europe/Berlin')
+          end
+
+          it 'starts at 9:00' do
+            expect(occurrence.start_time.hour).to eq(9)
+          end
+
+          it 'ends at 11:00' do
+            expect(occurrence.end_time.hour).to eq(11)
+          end
         end
       end
     end
-  end
 
-  context 'VARIATION with recurring events (RRULE expansion)' do
-    using Icalendar::Schedulable
-    using Icalendar::Scannable
-
-    context 'VARIATION when event has RRULE and explicit timezone' do
+    context 'when event has RRULE in exotic timezone (Nepal UTC+5:45)' do
       subject(:calendar_with_rrule) do
         calendar = Icalendar::Calendar.new
         # No calendar timezone set
 
         event = Icalendar::Event.new
-        event.dtstart = Icalendar::Values::DateTime.new('20180101T090000', tzid: 'America/New_York')
-        event.dtend = Icalendar::Values::DateTime.new('20180101T110000', tzid: 'America/New_York')
-        # event.rrule = Icalendar::Values::Recur.new('FREQ=DAILY;BYDAY=MO,FR')
+        # Nepal has UTC+5:45 offset (one of the few 45-minute offsets!)
+        event.dtstart = Icalendar::Values::DateTime.new('20180101T090000', tzid: 'Asia/Kathmandu')
+        event.dtend = Icalendar::Values::DateTime.new('20180101T110000', tzid: 'Asia/Kathmandu')
         event.rrule = 'FREQ=DAILY;BYDAY=MO,FR'
-        event.summary = 'Daily Meeting'
+        event.summary = 'Monday/Friday Meeting in Nepal'
 
         calendar.add_event(event)
         calendar
       end
 
-      it 'preserves timezone across all occurrences' do
-        scan_start = Date.new(2018, 2, 1)
-        scan_end =  Date.new(2018, 2, 10)
-        occurrences = calendar_with_rrule.scan(scan_start, scan_end)
+      # Scan 2025 (base event is in 2018, so NOT in scan range!)
+      let(:scan_start) { Date.new(2025, 1, 1) }
+      let(:scan_end) { Date.new(2025, 12, 31) }
+      let(:occurrences) { calendar_with_rrule.scan(scan_start, scan_end) }
 
-        occurrences.each_with_index do |occ, i|
-          expect(occ.start_time.time_zone.name).to eq('America/New_York')
-          expect(occ.start_time.hour).to eq(9)
-          expect(occ.start_time.strftime('%H:%M')).to eq('09:00')
+      it 'generates many occurrences' do
+        expect(occurrences.length).to be > 100
+      end
 
-          expect(occ.end_time.time_zone.name).to eq('America/New_York')
-          expect(occ.end_time.hour).to eq(11)
-          expect(occ.end_time.strftime('%H:%M')).to eq('11:00')
+      # Test first, middle, and last occurrence
+      [0, 50, -1].each do |i|
+        describe "occurrence[#{i}] when base event not in scan range" do
+          subject(:occurrence) { occurrences[i] }
+
+          it 'preserves Kathmandu timezone with 45-minute offset' do
+            expect(occurrence.start_time.time_zone.name).to eq('Asia/Kathmandu')
+            # Check the unusual offset (5 hours 45 minutes = 20700 seconds)
+            expect(occurrence.start_time.utc_offset).to eq(20700)
+          end
+
+          it 'starts at 9:00' do
+            expect(occurrence.start_time.hour).to eq(9)
+            expect(occurrence.start_time.min).to eq(0)
+          end
+
+          it 'ends at 11:00' do
+            expect(occurrence.end_time.hour).to eq(11)
+            expect(occurrence.end_time.min).to eq(0)
+          end
         end
       end
     end
+
   end
+
+  context 'with all-day events (VALUE=DATE)' do
+    using Icalendar::Schedulable
+    using Icalendar::Scannable
+
+    context 'when all-day event has RRULE (yearly birthday)' do
+      subject(:calendar_with_birthday) do
+        calendar = Icalendar::Calendar.new
+
+        event = Icalendar::Event.new
+        # All-day event (VALUE=DATE)
+        event.dtstart = Date.new(2018, 7, 4)
+        event.dtend = Date.new(2018, 7, 5)
+        event.rrule = 'FREQ=YEARLY'
+        event.summary = 'Birthday'
+
+        calendar.add_event(event)
+        calendar
+      end
+
+      let(:scan_start) { Date.new(2020, 1, 1) }
+      let(:scan_end) { Date.new(2025, 12, 31) }
+      let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
+
+
+      it 'generates yearly occurrences' do
+        expect(occurrences.length).to eq(6)  # 2020-2025
+      end
+
+      [0, 2, -1].each do |i|
+        describe "occurrence[#{i}]" do
+          subject(:occurrence) { occurrences[i] }
+
+          it 'identifies as all-day event' do
+            expect(occurrence.all_day?).to be true
+          end
+
+          it 'identifies as not multi-day' do
+            expect(occurrence.multi_day?).to be false
+          end
+
+          it 'stays on July 4th (not shifted by timezone)' do
+            expect(occurrence.start_time.month).to eq(7)
+            expect(occurrence.start_time.day).to eq(4)
+          end
+
+          it 'starts at midnight' do
+            expect(occurrence.start_time.hour).to eq(0)
+            expect(occurrence.start_time.min).to eq(0)
+          end
+
+          it 'ends on July 5th at midnight' do
+            expect(occurrence.end_time.month).to eq(7)
+            expect(occurrence.end_time.day).to eq(5)
+            expect(occurrence.end_time.hour).to eq(0)
+          end
+        end
+      end
+    end
+
+    #todo: make this test pass
+    context 'when all-day event without DTEND (implicit 1-day duration)' do
+      subject(:calendar_with_birthday) do
+        calendar = Icalendar::Calendar.new
+
+        event = Icalendar::Event.new
+        event.dtstart = Date.new(2018, 7, 4)
+        # NO dtend - RFC says duration should be 1 day
+        event.rrule = 'FREQ=YEARLY'
+        event.summary = 'Birthday (no end date)'
+
+        calendar.add_event(event)
+        calendar
+      end
+
+      let(:scan_start) { Date.new(2020, 1, 1) }
+      let(:scan_end) { Date.new(2025, 12, 31) }
+      let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
+
+      [0, 2, -1].each do |i|
+        describe "occurrence[#{i}]" do
+          subject(:occurrence) { occurrences[i] }
+
+          it 'has implicit 1-day duration' do
+            duration_days = (occurrence.end_time.to_i - occurrence.start_time.to_i) / 86400.0
+            expect(duration_days).to eq(1.0)
+          end
+
+          it 'starts on July 4th at midnight' do
+            expect(occurrence.start_time.month).to eq(7)
+            expect(occurrence.start_time.day).to eq(4)
+            expect(occurrence.start_time.hour).to eq(0)
+          end
+
+          it 'ends on July 5th at midnight' do
+            expect(occurrence.end_time.month).to eq(7)
+            expect(occurrence.end_time.day).to eq(5)
+            expect(occurrence.end_time.hour).to eq(0)
+          end
+        end
+      end
+    end
+
+    context 'when all-day event spans multiple days (vacation)' do
+      subject(:calendar_with_vacation) do
+        calendar = Icalendar::Calendar.new
+
+        event = Icalendar::Event.new
+        # 3-day vacation
+        event.dtstart = Date.new(2025, 8, 1)
+        event.dtend = Date.new(2025, 8, 4)  # Aug 1-3 (end is exclusive)
+        event.summary = 'Summer Vacation'
+
+        calendar.add_event(event)
+        calendar
+      end
+
+      let(:vacation_event) { calendar_with_vacation.events.first }
+
+      it 'identifies as all-day' do
+        expect(vacation_event.all_day?).to be true
+      end
+
+      it 'identifies as multi-day' do
+        expect(vacation_event.multi_day?).to be true
+      end
+    end
+  end
+
+      #todo: add tests for Tasks without start or end
 
 end
