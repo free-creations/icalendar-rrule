@@ -359,135 +359,220 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       end
     end
 
-  end
-
-  context 'with all-day events (VALUE=DATE)' do
-    using Icalendar::Schedulable
-    using Icalendar::Scannable
-
-    context 'when all-day event has RRULE (yearly birthday)' do
-      subject(:calendar_with_birthday) do
+    context 'when event has RRULE with FREQ=HOURLY' do
+      subject(:calendar_with_hourly) do
         calendar = Icalendar::Calendar.new
+        calendar.timezone do |tz|
+          tz.tzid = 'Europe/Berlin'
+        end
 
         event = Icalendar::Event.new
-        # All-day event (VALUE=DATE)
-        event.dtstart = Date.new(2018, 7, 4)
-        event.dtend = Date.new(2018, 7, 5)
-        event.rrule = 'FREQ=YEARLY'
-        event.summary = 'Birthday'
+        event.dtstart = Icalendar::Values::DateTime.new('20180101T090000', tzid: 'Europe/Berlin')
+        event.dtend = Icalendar::Values::DateTime.new('20180101T100000', tzid: 'Europe/Berlin')
+        event.rrule = 'FREQ=HOURLY;COUNT=5'
+        event.summary = 'Hourly Meeting'
 
         calendar.add_event(event)
         calendar
       end
 
-      let(:scan_start) { Date.new(2020, 1, 1) }
-      let(:scan_end) { Date.new(2025, 12, 31) }
-      let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
+      let(:scan_start) { Date.new(2018, 1, 1) }
+      let(:scan_end) { Date.new(2018, 1, 2) }
+      let(:occurrences) { calendar_with_hourly.scan(scan_start, scan_end) }
 
-
-      it 'generates yearly occurrences' do
-        expect(occurrences.length).to eq(6)  # 2020-2025
+      it 'generates 5 hourly occurrences' do
+        expect(occurrences.length).to eq(5)
       end
 
-      [0, 2, -1].each do |i|
+      it 'spaces occurrences 1 hour apart' do
+        expect(occurrences[1].start_time - occurrences[0].start_time).to eq(3600)
+      end
+
+      it 'preserves timezone across hourly occurrences' do
+        occurrences.each do |occurrence|
+          expect(occurrence.start_time.time_zone.name).to eq('Europe/Berlin')
+        end
+      end
+    end
+
+    context 'with all-day events (VALUE=DATE)' do
+      using Icalendar::Schedulable
+      using Icalendar::Scannable
+
+      context 'when all-day event has RRULE (yearly birthday)' do
+        subject(:calendar_with_birthday) do
+          calendar = Icalendar::Calendar.new
+
+          event = Icalendar::Event.new
+          # All-day event (VALUE=DATE)
+          event.dtstart = Date.new(2018, 7, 4)
+          event.dtend = Date.new(2018, 7, 5)
+          event.rrule = 'FREQ=YEARLY'
+          event.summary = 'Birthday'
+
+          calendar.add_event(event)
+          calendar
+        end
+
+        let(:scan_start) { Date.new(2020, 1, 1) }
+        let(:scan_end) { Date.new(2025, 12, 31) }
+        let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
+
+        it 'generates yearly occurrences' do
+          expect(occurrences.length).to eq(6) # 2020-2025
+        end
+
+        [0, 2, -1].each do |i|
+          describe "occurrence[#{i}]" do
+            subject(:occurrence) { occurrences[i] }
+
+            it 'identifies as all-day event' do
+              expect(occurrence.all_day?).to be true
+            end
+
+            it 'identifies as not multi-day' do
+              expect(occurrence.multi_day?).to be false
+            end
+
+            it 'stays on July 4th (not shifted by timezone)' do
+              expect(occurrence.start_time.month).to eq(7)
+              expect(occurrence.start_time.day).to eq(4)
+            end
+
+            it 'starts at midnight' do
+              expect(occurrence.start_time.hour).to eq(0)
+              expect(occurrence.start_time.min).to eq(0)
+            end
+
+            it 'ends on July 5th at midnight' do
+              expect(occurrence.end_time.month).to eq(7)
+              expect(occurrence.end_time.day).to eq(5)
+              expect(occurrence.end_time.hour).to eq(0)
+            end
+          end
+        end
+      end
+
+      context 'when all-day event without DTEND (implicit 1-day duration)' do
+        subject(:calendar_with_birthday) do
+          calendar = Icalendar::Calendar.new
+          calendar.timezone do |tz|
+            tz.tzid = 'Asia/Kathmandu'
+          end
+
+          event = Icalendar::Event.new
+          event.dtstart = Date.new(2018, 7, 4)
+          # NO dtend - RFC says duration should be 1 day
+          event.rrule = 'FREQ=YEARLY'
+          event.summary = 'Birthday (no end date)'
+
+          calendar.add_event(event)
+          calendar
+        end
+
+        let(:scan_start) { Date.new(2020, 1, 1) }
+        let(:scan_end) { Date.new(2025, 12, 31) }
+        let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
+
+        [0, 2, -1].each do |i|
+          describe "occurrence[#{i}]" do
+            subject(:occurrence) { occurrences[i] }
+
+            it 'has implicit 1-day duration' do
+              duration_days = (occurrence.end_time.to_i - occurrence.start_time.to_i) / 86400.0
+              expect(duration_days).to eq(1.0)
+            end
+
+            it 'starts on July 4th at midnight' do
+              expect(occurrence.start_time.month).to eq(7)
+              expect(occurrence.start_time.day).to eq(4)
+              expect(occurrence.start_time.hour).to eq(0)
+            end
+
+            it 'ends on July 5th at midnight' do
+              expect(occurrence.end_time.month).to eq(7)
+              expect(occurrence.end_time.day).to eq(5)
+              expect(occurrence.end_time.hour).to eq(0)
+            end
+          end
+        end
+      end
+
+      context 'when all-day event spans multiple days (vacation)' do
+        subject(:calendar_with_vacation) do
+          calendar = Icalendar::Calendar.new
+
+          event = Icalendar::Event.new
+          # 3-day vacation
+          event.dtstart = Date.new(2025, 8, 1)
+          event.dtend = Date.new(2025, 8, 4) # Aug 1-3 (end is exclusive)
+          event.summary = 'Summer Vacation'
+
+          calendar.add_event(event)
+          calendar
+        end
+
+        let(:vacation_event) { calendar_with_vacation.events.first }
+
+        it 'identifies as all-day' do
+          expect(vacation_event.all_day?).to be true
+        end
+
+        it 'identifies as multi-day' do
+          expect(vacation_event.multi_day?).to be true
+        end
+      end
+    end
+    context 'with zero-duration timed event with RRULE in exotic timezone' do
+      subject(:recurring_concert_calendar) do
+        calendar = Icalendar::Calendar.new
+        # No calendar timezone set
+
+        event = Icalendar::Event.new
+        event.dtstart = Icalendar::Values::DateTime.new('20180101T200000', tzid: 'Asia/Kathmandu')
+        # NO dtend, NO duration - RFC 5545: zero-duration event
+        event.rrule = 'FREQ=WEEKLY;BYDAY=FR;COUNT=3' # 3 Fridays
+        event.summary = 'Weekly Concert in Nepal (open-ended)'
+
+        calendar.add_event(event)
+        calendar
+      end
+
+      let(:scan_start) { Date.new(2018, 1, 1) }
+      let(:scan_end) { Date.new(2018, 12, 31) }
+      let(:occurrences) { recurring_concert_calendar.scan(scan_start, scan_end) }
+
+      it 'generates 3 weekly occurrences' do
+        expect(occurrences.length).to eq(3)
+      end
+
+      [0, 1, -1].each do |i|
         describe "occurrence[#{i}]" do
           subject(:occurrence) { occurrences[i] }
 
-          it 'identifies as all-day event' do
-            expect(occurrence.all_day?).to be true
+          it 'has zero duration (end_time == start_time)' do
+            expect(occurrence.end_time).to eq(occurrence.start_time)
           end
 
-          it 'identifies as not multi-day' do
-            expect(occurrence.multi_day?).to be false
+          it 'preserves Kathmandu timezone with 45-minute offset' do
+            expect(occurrence.start_time.time_zone.name).to eq('Asia/Kathmandu')
+            expect(occurrence.end_time.time_zone.name).to eq('Asia/Kathmandu')
+            # Check the unusual offset (5 hours 45 minutes = 20700 seconds)
+            expect(occurrence.start_time.utc_offset).to eq(20700)
+            expect(occurrence.end_time.utc_offset).to eq(20700)
           end
 
-          it 'stays on July 4th (not shifted by timezone)' do
-            expect(occurrence.start_time.month).to eq(7)
-            expect(occurrence.start_time.day).to eq(4)
-          end
-
-          it 'starts at midnight' do
-            expect(occurrence.start_time.hour).to eq(0)
+          it 'preserves the time (20:00)' do
+            expect(occurrence.start_time.hour).to eq(20)
             expect(occurrence.start_time.min).to eq(0)
-          end
-
-          it 'ends on July 5th at midnight' do
-            expect(occurrence.end_time.month).to eq(7)
-            expect(occurrence.end_time.day).to eq(5)
-            expect(occurrence.end_time.hour).to eq(0)
+            expect(occurrence.end_time.hour).to eq(20)
+            expect(occurrence.end_time.min).to eq(0)
           end
         end
-      end
-    end
-
-    context 'when all-day event without DTEND (implicit 1-day duration)' do
-      subject(:calendar_with_birthday) do
-        calendar = Icalendar::Calendar.new
-
-        event = Icalendar::Event.new
-        event.dtstart = Date.new(2018, 7, 4)
-        # NO dtend - RFC says duration should be 1 day
-        event.rrule = 'FREQ=YEARLY'
-        event.summary = 'Birthday (no end date)'
-
-        calendar.add_event(event)
-        calendar
-      end
-
-      let(:scan_start) { Date.new(2020, 1, 1) }
-      let(:scan_end) { Date.new(2025, 12, 31) }
-      let(:occurrences) { calendar_with_birthday.scan(scan_start, scan_end) }
-
-      [0, 2, -1].each do |i|
-        describe "occurrence[#{i}]" do
-          subject(:occurrence) { occurrences[i] }
-
-          it 'has implicit 1-day duration' do
-            duration_days = (occurrence.end_time.to_i - occurrence.start_time.to_i) / 86400.0
-            expect(duration_days).to eq(1.0)
-          end
-
-          it 'starts on July 4th at midnight' do
-            expect(occurrence.start_time.month).to eq(7)
-            expect(occurrence.start_time.day).to eq(4)
-            expect(occurrence.start_time.hour).to eq(0)
-          end
-
-          it 'ends on July 5th at midnight' do
-            expect(occurrence.end_time.month).to eq(7)
-            expect(occurrence.end_time.day).to eq(5)
-            expect(occurrence.end_time.hour).to eq(0)
-          end
-        end
-      end
-    end
-
-    context 'when all-day event spans multiple days (vacation)' do
-      subject(:calendar_with_vacation) do
-        calendar = Icalendar::Calendar.new
-
-        event = Icalendar::Event.new
-        # 3-day vacation
-        event.dtstart = Date.new(2025, 8, 1)
-        event.dtend = Date.new(2025, 8, 4)  # Aug 1-3 (end is exclusive)
-        event.summary = 'Summer Vacation'
-
-        calendar.add_event(event)
-        calendar
-      end
-
-      let(:vacation_event) { calendar_with_vacation.events.first }
-
-      it 'identifies as all-day' do
-        expect(vacation_event.all_day?).to be true
-      end
-
-      it 'identifies as multi-day' do
-        expect(vacation_event.multi_day?).to be true
       end
     end
   end
 
-      #todo: add tests for Tasks without start or end
+  # todo: add tests for Tasks without start or end
 
 end
