@@ -573,6 +573,147 @@ RSpec.describe Icalendar::Rrule::Occurrence do
     end
   end
 
-  # todo: add tests for Tasks without start or end
+  context 'with Tasks (Todos)' do
+
+    context 'with tasks without start or end' do
+      using Icalendar::Schedulable
+
+      context 'when task has neither DTSTART nor DUE' do
+        subject(:task) do
+          task = Icalendar::Todo.new
+          task.summary = 'Someday clean garage'
+          task
+        end
+
+        it 'does not crash when accessing time properties' do
+          expect { task.start_time }.not_to raise_error
+          expect { task.end_time }.not_to raise_error
+          expect { task.all_day? }.not_to raise_error
+          expect { task.multi_day? }.not_to raise_error
+        end
+
+        it 'returns Unix Epoch (1970-01-01) as sentinel value for start_time' do
+          expect(task.start_time.year).to eq(1970)
+          expect(task.start_time.month).to eq(1)
+          expect(task.start_time.day).to eq(1)
+        end
+
+        it 'returns Unix Epoch (1970-01-01) as sentinel value for end_time' do
+          expect(task.end_time.year).to eq(1970)
+          expect(task.end_time.month).to eq(1)
+          expect(task.end_time.day).to eq(1)
+        end
+
+
+      end
+
+      context 'when task has only DUE (no DTSTART, no DURATION)' do
+        subject(:task) do
+          task = Icalendar::Todo.new
+          task.due = Date.new(2025, 12, 25)
+          task.summary = 'Christmas shopping'
+          task
+        end
+
+        it 'start_time equals due date (zero-duration task)' do
+          expect(task.start_time.to_date).to eq(Date.new(2025, 12, 25))
+        end
+
+        it 'end_time equals due date' do
+          expect(task.end_time.to_date).to eq(Date.new(2025, 12, 25))
+        end
+
+        it 'identifies as not multi-day' do
+          expect(task.multi_day?).to be false
+        end
+
+        it 'identifies as not all-day' do
+          expect(task.all_day?).to be false
+        end
+
+        it 'identifies as single_timestamp (a task which has only a deadline (DUE) but no start time)' do
+          expect(task.single_timestamp?).to be true
+        end
+      end
+
+      context 'when task has DTSTART and DUE' do
+        subject(:task) do
+          task = Icalendar::Todo.new
+          task.dtstart = DateTime.new(2025, 12, 20, 9, 0, 0)
+          task.due = DateTime.new(2025, 12, 25, 17, 0, 0)
+          task.summary = 'Prepare Christmas dinner'
+          task
+        end
+
+        it 'calculates duration between start and due' do
+          duration_hours = (task.end_time.to_i - task.start_time.to_i) / 3600.0
+          expect(duration_hours).to be_within(0.1).of(128.0)  # ~5 days 8 hours
+        end
+
+
+        it 'identifies as multi_day (spans ~5 days 8 hours)' do
+          expect(task.multi_day?).to be true
+        end
+      end
+    end
+
+    context 'when task has only DTSTART (no DUE, no DURATION)' do
+      subject(:task) do
+        task = Icalendar::Todo.new
+        task.dtstart = DateTime.new(2025, 12, 20, 9, 0, 0)
+
+        task.summary = 'Start working on thesis (no deadline)'
+        task
+      end
+
+      it 'has start_time set to DTSTART' do
+        expect(task.start_time.year).to eq(2025)
+        expect(task.start_time.month).to eq(12)
+        expect(task.start_time.day).to eq(20)
+        expect(task.start_time.hour).to eq(9)
+        expect(task.start_time.min).to eq(0)
+      end
+
+      it 'identifies as single_timestamp (a task which has only a start time but no deadline)' do
+        # RFC 5545 doesn't specify behavior for tasks with DTSTART but no DUE
+        # We treat it as zero-duration for consistency with events without DTEND
+        expect(task.single_timestamp?).to be true
+      end
+
+      it 'does not crash' do
+        expect { task.start_time }.not_to raise_error
+        expect { task.end_time }.not_to raise_error
+      end
+    end
+
+    context 'when task has DUE and DURATION (implicit DTSTART)' do
+      subject(:task) do
+        task = Icalendar::Todo.new
+        task.due = Icalendar::Values::DateTime.new('20251225T000000', tzid: 'Europe/Berlin')
+        task.duration = 'PT2H'  # 2 hours
+        task.summary = 'Prepare Christmas dinner (2h before deadline)'
+        task
+      end
+
+      it 'calculates implicit start_time as DUE minus DURATION' do
+        expect(task.start_time.day).to eq(24)  # Day before!
+        expect(task.start_time.hour).to eq(22)  # 2 hours before midnight
+      end
+
+      it 'end_time equals DUE' do
+        expect(task.end_time.day).to eq(25)
+        expect(task.end_time.hour).to eq(0)
+      end
+
+      it 'has 2-hour duration' do
+        duration_hours = (task.end_time.to_i - task.start_time.to_i) / 3600.0
+        expect(duration_hours).to eq(2.0)
+      end
+
+      it 'identifies as NOT single_timestamp (has duration)' do
+        expect(task.single_timestamp?).to be false
+      end
+    end
+  end
 
 end

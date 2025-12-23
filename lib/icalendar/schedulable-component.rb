@@ -153,8 +153,11 @@ module Icalendar
       def start_time
         if _dtstart
           _to_time_with_zone(_dtstart)
-        elsif _due
+        elsif _due && _duration_seconds > 0
           _to_time_with_zone(_due.to_i - _duration_seconds)
+        elsif _due
+          # Task with only DUE, no duration: start == end (zero-duration/deadline-only)
+          _to_time_with_zone(_due)
         else
           _to_time_with_zone(NULL_TIME)
         end
@@ -176,7 +179,7 @@ module Icalendar
             end_date = start_date + (_duration_seconds / SEC_DAY).days
             _date_to_time_with_zone(end_date, component_timezone)
           else
-            _to_time_with_zone(_dtstart.to_i + _duration_seconds)
+            _to_time_with_zone(start_time.to_i + _duration_seconds)
           end
         else
           _to_time_with_zone(NULL_TIME + _duration_seconds)
@@ -203,9 +206,16 @@ module Icalendar
 
       ##
       # Heuristic to determine whether the event is scheduled
-      # for a date without precising the exact time of day.
-      # @return [Boolean] true if the component is scheduled for a date, false otherwise.
+      # for a date without specifying the exact time of day.
+      #
+      # Note: This method always returns false for tasks (VTODOs),
+      # as the all-day concept only applies to events (VEVENTs).
+      #
+      # @return [Boolean] true if the component is an Event scheduled for an entire day,
+      #                   false for tasks or timed events
       def all_day?
+        return false unless self.is_a?(Icalendar::Event)
+
         _dtstart.is_a?(Icalendar::Values::Date) ||
           (start_time == start_time.beginning_of_day && end_time == end_time.beginning_of_day)
       end
@@ -214,6 +224,19 @@ module Icalendar
       # @return [Boolean] true if the duration of the event spans more than one day.
       def multi_day?
         start_time.next_day.beginning_of_day < end_time
+      end
+
+      ##
+      # Indicates whether this component represents a single point in time
+      # rather than a time range. Common for:
+      # - Open-ended events (e.g., concert start time without known end)
+      # - Tasks with only a deadline (no start time specified)
+      #
+      # @return [Boolean] true if the component has no duration
+      def single_timestamp?
+        return false if start_time.nil? || end_time.nil?
+        # Compare at second precision (ignore potential microsecond differences)
+        start_time.to_i == end_time.to_i
       end
 
       ##
