@@ -245,7 +245,14 @@ RSpec.describe Icalendar::Rrule::Occurrence do
 
         # Should use system timezone, not UTC
         system_tz_name = meeting_with_datetime.start_time.time_zone.name
-        expect(system_tz_name).not_to eq('UTC')
+        if ENV['TZ'] == 'UTC'
+          # In UTC environment, UTC is correct
+          expect(system_tz_name).to eq('UTC')
+        else
+          # In non-UTC environment, should use system timezone, not UTC
+          expect(system_tz_name).not_to eq('UTC')
+        end
+
       end
 
       it 'uses system timezone for end_time (floating time behavior)' do
@@ -254,7 +261,14 @@ RSpec.describe Icalendar::Rrule::Occurrence do
 
         # Should use system timezone, not UTC
         system_tz_name = meeting_with_datetime.end_time.time_zone.name
-        expect(system_tz_name).not_to eq('UTC')
+
+        if ENV['TZ'] == 'UTC'
+          # In UTC environment, UTC is correct
+          expect(system_tz_name).to eq('UTC')
+        else
+          # In non-UTC environment, should use system timezone, not UTC
+          expect(system_tz_name).not_to eq('UTC')
+        end
       end
 
       it 'calculates meeting duration as 1 hour' do
@@ -718,12 +732,11 @@ RSpec.describe Icalendar::Rrule::Occurrence do
       # If both exist (RFC violation), DUE takes precedence as deadlines
       # are typically more binding than estimated durations.
 
-
       subject(:task) do
         task = Icalendar::Todo.new
         task.dtstart = Icalendar::Values::DateTime.new('20251224T120000', tzid: 'Europe/Berlin')
         task.due = Icalendar::Values::DateTime.new('20251225T000000', tzid: 'Europe/Berlin')
-        task.duration = 'PT2H'  # 2 hours (ignored in favor of DUE)
+        task.duration = 'PT2H' # 2 hours (ignored in favor of DUE)
         task.summary = 'Prepare Christmas dinner (sometime before deadline)'
         task
       end
@@ -757,7 +770,7 @@ RSpec.describe Icalendar::Rrule::Occurrence do
 
         task = Icalendar::Todo.new
         task.due = Date.new(2025, 12, 25)
-        task.rrule = 'FREQ=YEARLY;COUNT=3'  # 3 years
+        task.rrule = 'FREQ=YEARLY;COUNT=3' # 3 years
         task.summary = 'Christmas shopping deadline'
 
         calendar.add_todo(task)
