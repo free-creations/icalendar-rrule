@@ -607,16 +607,14 @@ RSpec.describe Icalendar::Rrule::Occurrence do
         expect { task.multi_day? }.not_to raise_error
       end
 
-      it 'returns Unix Epoch (1970-01-01) as sentinel value for start_time' do
-        expect(task.start_time.year).to eq(1970)
-        expect(task.start_time.month).to eq(1)
-        expect(task.start_time.day).to eq(1)
+      it 'returns Unix Epoch (t=0) as sentinel value for start_time' do
+        expect(task.start_time.to_i).to eq(0)
+        expect(task.start_time.utc.to_date).to eq(Date.new(1970, 1, 1))
       end
 
-      it 'returns Unix Epoch (1970-01-01) as sentinel value for end_time' do
-        expect(task.end_time.year).to eq(1970)
-        expect(task.end_time.month).to eq(1)
-        expect(task.end_time.day).to eq(1)
+      it 'returns Unix Epoch (t=0) as sentinel value for end_time' do
+        expect(task.end_time.to_i).to eq(0)
+        expect(task.end_time.utc.to_date).to eq(Date.new(1970, 1, 1))
       end
 
     end
