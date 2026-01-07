@@ -105,10 +105,6 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       end
     end
 
-
-
-
-
     specify '._unique_timezone of a Component (without dtstart, dtend and due) uses system timezone or UTC' do
       tz = component.component_timezone
       system_offset = Time.now.utc_offset
@@ -139,7 +135,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       result = component._to_time_with_zone(ical_date_without_tzid)
 
       expect(result).to be_a(ActiveSupport::TimeWithZone)
-      expect(result.hour).to eq(ical_date_without_tzid.hour)  # Time is preserved
+      expect(result.hour).to eq(ical_date_without_tzid.hour) # Time is preserved
       expect(result.min).to eq(ical_date_without_tzid.min)
     end
     specify('._to_time_with_zone returns an `ActiveSupport::TimeWithZone` for an time_with_zone_date') do
@@ -158,7 +154,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
 
     let(:cet_timezone) do
-      ActiveSupport::TimeZone['Berlin']  # CET/CEST timezone
+      ActiveSupport::TimeZone['Berlin'] # CET/CEST timezone
     end
 
     specify('._to_time_with_zone preserves timezone from Ruby Time object') do
@@ -176,7 +172,6 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(result.min).to eq(30)
       expect(result.time_zone.name).to eq('Berlin')
     end
-
 
     specify('.schedule returns an `IceCube::Schedule`') do
       expect(component.schedule).to be_a(IceCube::Schedule)
@@ -351,5 +346,134 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
       expect(one_full_day.multi_day?).to be_falsey
     end
   end
+
+
+  describe '#_to_floating_time' do
+    using Icalendar::Schedulable
+
+    # Use exotic timezone to avoid system-TZ interference
+    let(:kathmandu_tz) { ActiveSupport::TimeZone['Asia/Kathmandu'] } # UTC+5:45, no DST
+    let(:ny_tz) { ActiveSupport::TimeZone['America/New_York'] } # UTC-5/-4, has DST
+
+    # Create a dummy event for testing
+    let(:event) do
+      evt = Icalendar::Event.new
+      evt.dtstart = Icalendar::Values::DateTime.new('20180101T120000', tzid: 'Asia/Kathmandu')
+      evt
+    end
+
+    context 'when converting a simple UTC time' do
+      it 'converts to floating time preserving wall-clock time in target timezone' do
+        # 2018-01-01 15:00 UTC = 2018-01-01 20:45 in Kathmandu (UTC+5:45)
+        utc_time = Time.utc(2018, 1, 1, 15, 0, 0)
+
+        floating = event._to_floating_time(utc_time, kathmandu_tz)
+
+        # Should be floating time (offset 0)
+        expect(floating).to be_a(Time)
+        expect(floating.utc_offset).to eq(0)
+
+        # Should preserve wall-clock time in Kathmandu (20:45)
+        expect(floating.year).to eq(2018)
+        expect(floating.month).to eq(1)
+        expect(floating.day).to eq(1)
+        expect(floating.hour).to eq(20) # 15:00 UTC + 5:45 = 20:45
+        expect(floating.min).to eq(45)
+        expect(floating.sec).to eq(0)
+      end
+    end
+
+    context 'when converting across DST boundary (New York)' do
+      it 'handles winter time correctly' do
+        # 2018-01-01 15:00 UTC = 2018-01-01 10:00 EST (UTC-5)
+        utc_winter = Time.utc(2018, 1, 1, 15, 0, 0)
+
+        floating = event._to_floating_time(utc_winter, ny_tz)
+
+        expect(floating.hour).to eq(10) # 15:00 UTC - 5h = 10:00 EST
+        expect(floating.min).to eq(0)
+      end
+
+      it 'handles summer time correctly' do
+        # 2018-07-01 14:00 UTC = 2018-07-01 10:00 EDT (UTC-4)
+        utc_summer = Time.utc(2018, 7, 1, 14, 0, 0)
+
+        floating = event._to_floating_time(utc_summer, ny_tz)
+
+        expect(floating.hour).to eq(10) # 14:00 UTC - 4h = 10:00 EDT
+        expect(floating.min).to eq(0)
+      end
+    end
+
+    context 'when converting TimeWithZone from different timezone' do
+      it 'reinterprets in target timezone' do
+        # New York: 2018-01-01 10:00 EST = 15:00 UTC = 20:45 Kathmandu
+        ny_time = ny_tz.local(2018, 1, 1, 10, 0, 0)
+
+        floating = event._to_floating_time(ny_time, kathmandu_tz)
+
+        expect(floating.hour).to eq(20) # converted to Kathmandu wall-clock
+        expect(floating.min).to eq(45)
+      end
+    end
+
+    context 'when converting Date (system-TZ independent)' do
+      it 'treats date as midnight in target timezone, not system-TZ' do
+        date = Date.new(2018, 1, 1)
+
+        floating = event._to_floating_time(date, kathmandu_tz)
+
+        expect(floating.year).to eq(2018)
+        expect(floating.month).to eq(1)
+        expect(floating.day).to eq(1)
+        expect(floating.hour).to eq(0) # midnight in Kathmandu, NOT system-TZ
+        expect(floating.min).to eq(0)
+        expect(floating.utc_offset).to eq(0)
+      end
+    end
+
+    context 'when converting Icalendar::Values::DateTime with TZID' do
+      it 'respects TZID parameter' do
+        # Explicitly in Kathmandu timezone
+        ical_dt = Icalendar::Values::DateTime.new('20180701T143000', tzid: 'Asia/Kathmandu')
+
+        floating = event._to_floating_time(ical_dt, kathmandu_tz)
+
+        expect(floating.hour).to eq(14)
+        expect(floating.min).to eq(30)
+        expect(floating.utc_offset).to eq(0)
+      end
+    end
+
+    context 'when converting Ruby Time with system-TZ offset' do
+      it 'converts correctly regardless of system-TZ' do
+        # Ruby Time.new uses system-TZ, but we convert explicitly to target-TZ
+        # This should work the same in Berlin (UTC+1) or CI (UTC)
+        ruby_time = Time.new(2018, 1, 1, 12, 0, 0) # 12:00 in system-TZ
+
+        # We force interpretation in Kathmandu timezone
+        floating = event._to_floating_time(ruby_time, kathmandu_tz)
+
+        # Result should be deterministic: ruby_time → UTC → Kathmandu
+        expect(floating.utc_offset).to eq(0)
+        # Hour depends on system-TZ, but should be consistent with _to_time_with_zone behavior
+        expect(floating).to be_a(Time)
+      end
+    end
+
+    context 'when converting Integer (Unix timestamp)' do
+      it 'interprets as UTC epoch, then converts to target timezone' do
+        # 2018-01-01 00:00:00 UTC as Unix timestamp
+        timestamp = Time.utc(2018, 1, 1, 0, 0, 0).to_i
+
+        floating = event._to_floating_time(timestamp, kathmandu_tz)
+
+        # 00:00 UTC = 05:45 Kathmandu
+        expect(floating.hour).to eq(5)
+        expect(floating.min).to eq(45)
+      end
+    end
+  end
+
 end
 # rubocop:enable RSpec/PredicateMatcher

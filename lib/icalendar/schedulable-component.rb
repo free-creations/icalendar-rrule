@@ -449,6 +449,44 @@ module Icalendar
         timezone.local(d.year, d.month, d.day)
       end
 
+
+
+      ##
+      # Converts any time representation to "floating time" (Time object with UTC offset 0).
+      #
+      # Floating time represents "wall clock time" without timezone information,
+      # useful for DST-safe recurrence calculations. The time components (year, month, day,
+      # hour, minute, second) are preserved, but timezone information is stripped.
+      #
+      # @param [Object] date_or_time any object representing a time (Icalendar::Values::DateTime,
+      #   ActiveSupport::TimeWithZone, Date, Time, Integer, etc.)
+      # @param [ActiveSupport::TimeZone] target_tz the timezone to interpret the time in
+      #   before converting to floating time. If nil, uses component_timezone.
+      # @return [Time] a Ruby Time object with UTC offset 0 (floating time)
+      # @api private
+      #
+      # @example Convert a UTC timestamp to floating time in Berlin
+      #   # UTC: 2018-01-01 15:00 UTC → Berlin: 2018-01-01 16:00 CET
+      #   floating = _to_floating_time(utc_time, ActiveSupport::TimeZone['Europe/Berlin'])
+      #   # => 2018-01-01 16:00:00 +0000 (floating)
+      def _to_floating_time(date_or_time, target_tz )
+
+        # Convert to TimeWithZone in target timezone first
+        time_with_zone = _to_time_with_zone(date_or_time, target_tz)
+
+        # Extract wall-clock components and create floating time (offset 0)
+        Time.new(
+          time_with_zone.year,
+          time_with_zone.month,
+          time_with_zone.day,
+          time_with_zone.hour,
+          time_with_zone.min,
+          time_with_zone.sec,
+          0  # UTC offset 0 = floating time
+        )
+      end
+
+
       ##
       # Heuristic to determine the best timezone that shall be used in this component.
       # @return [ActiveSupport::TimeZone] the unique timezone used in this component
