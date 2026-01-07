@@ -49,26 +49,25 @@ module Icalendar
       end
 
       private def _occurrences_between(components, begin_time, closing_time)
+        # ice_cube does not support timezones well, so we have to convert the given timezones to UTC.
         result = []
-        components.each do |comp|
-          occurrences = comp.schedule.occurrences_between(begin_time, closing_time)
+        components.each do |base_component|
+          ice_cube_occurrences = base_component.schedule.occurrences_between(begin_time.to_time.utc, closing_time.to_time.utc)
 
-          # Get the target timezone from the component
-          target_tz = comp.start_time.time_zone
+          ice_cube_occurrences.each do |ice_oc|
+            # retrieve start and end for this ice_cube occurrence and convert into the
+            # target timezones
+            ice_comp_start_time = ice_oc.start_time
+            # we assert that ice_comp_start_time is UTC here.
+            fail "expected UTC-time for ice_start_time" unless  ice_comp_start_time.utc?
+            start_tz = ice_comp_start_time.in_time_zone(base_component._timezone_for_start)
 
-          occurrences.each do |oc|
-            # Interpret the time components AS IF they're already in target timezone
-            # (don't convert, just reconstruct in the right zone)
-            start_tz = target_tz.local(
-              oc.start_time.year, oc.start_time.month, oc.start_time.day,
-              oc.start_time.hour, oc.start_time.min, oc.start_time.sec
-            )
-            end_tz = target_tz.local(
-              oc.end_time.year, oc.end_time.month, oc.end_time.day,
-              oc.end_time.hour, oc.end_time.min, oc.end_time.sec
-            )
+            ice_end_time = ice_oc.end_time
+            # we assert that ice_end_time is UTC here.
+            fail "expected UTC-time for ice_end_time" unless ice_end_time.utc?
+            end_tz = ice_end_time.in_time_zone(base_component._timezone_for_end)
 
-            new_oc = Icalendar::Rrule::Occurrence.new(self, comp, start_tz, end_tz)
+            new_oc = Icalendar::Rrule::Occurrence.new(self, base_component, start_tz, end_tz)
             result << new_oc
           end
         end

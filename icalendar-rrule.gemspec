@@ -30,8 +30,10 @@ Gem::Specification.new do |gem_spec|
 
   gem_spec.required_ruby_version = '>= 2.5'
 
+  # todo: should we restrict 'activesupport'to '>= 8.0' since ActiveSupport.to_time_preserves_timezone has changed
   gem_spec.add_dependency 'activesupport', '>= 5.1'
   gem_spec.add_dependency 'icalendar', '>= 2.4'
+  # todo: should we restrict 'ice_cube', '>= 0.17' and required_ruby_version = '>= 3.1' since ice_cube 0.17 is no more compatible with 2+
   gem_spec.add_dependency 'ice_cube', '>= 0.16'
 
   gem_spec.add_development_dependency 'bundler', '>= 2'

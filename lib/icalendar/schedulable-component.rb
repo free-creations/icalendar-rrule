@@ -214,6 +214,7 @@ module Icalendar
       # @return [Boolean] true if the component is an Event scheduled for an entire day,
       #                   false for tasks or timed events
       def all_day?
+        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
         return false unless self.is_a?(Icalendar::Event)
 
         _dtstart.is_a?(Icalendar::Values::Date) ||
@@ -234,13 +235,14 @@ module Icalendar
       #
       # @return [Boolean] true if the component has no duration
       def single_timestamp?
-        return false if start_time.nil? || end_time.nil?
+        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        return false if start_time.nil? || end_time.nil? # <--- ???? are never nil ????
         # Compare at second precision (ignore potential microsecond differences)
         start_time.to_i == end_time.to_i
       end
 
       ##
-      # Make sure, that we can always query for a _rrule_ array.
+      # Make sure that we can always query for a _rrule_ array.
       # @return [array] an array of _ical repeat-rules_ (or an empty array
       #                if no repeat-rules are defined for this component).
       # @api private
@@ -339,29 +341,29 @@ module Icalendar
       # Creates a schedule for this event
       # @return [IceCube::Schedule]
       def schedule # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-        # Calculate duration in seconds
+        # Calculate the duration of this base event in seconds
         duration_seconds = (end_time.to_i - start_time.to_i)  # Integer seconds
 
         # Create a schedule with start_time and duration
         # Convert to Ruby Time for IceCube compatibility
-        schedule = IceCube::Schedule.new(start_time.to_time, duration: duration_seconds)
+        schedule = IceCube::Schedule.new(start_time.to_time.utc, duration: duration_seconds)
 
         _rrules.each do |rrule|
           ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
         end
 
-        _exdates.each do |time|
-          schedule.add_exception_time(_to_time_with_zone(time))
+        _exdates.each do |ex_time|
+          schedule.add_exception_time(ex_time.to_time.utc)
         end
 
-        _overwritten_dates.each do |time|
-          schedule.add_exception_time(_to_time_with_zone(time))
+        _overwritten_dates.each do |overwritten_time|
+          schedule.add_exception_time(overwritten_time.to_time.utc)
         end
 
         rdates = _rdates
-        rdates.each do |time|
-          schedule.add_recurrence_time(_to_time_with_zone(time))
+        rdates.each do |recurrence_time|
+          schedule.add_recurrence_time(recurrence_time.to_time.utc)
         end
         schedule
       end
@@ -450,6 +452,7 @@ module Icalendar
       ##
       # Heuristic to determine the best timezone that shall be used in this component.
       # @return [ActiveSupport::TimeZone] the unique timezone used in this component
+      # @deprecated there is no unique timezone for a component. Use `timezone_for_start` or `timezone_for_end` instead.
       def component_timezone
         # let's try sequentially, the first non-nil wins.
         timezone ||= _extract_explicit_timezone(_dtend)
@@ -460,6 +463,22 @@ module Icalendar
 
         # as a last resort we'll use the Coordinated Universal Time (UTC).
         timezone || ActiveSupport::TimeZone['UTC']
+      end
+
+      ##
+      # Determine the timezone that shall be used for `start_time` this component
+      # @return [ActiveSupport::TimeZone] the unique timezone used for the start_time of this component
+      def _timezone_for_start
+        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        start_time.time_zone
+      end
+
+      ##
+      # Determine the timezone that shall be used for `end_time` this component
+      # @return [ActiveSupport::TimeZone] the unique timezone used for the end_time of this component
+      def _timezone_for_end
+        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        end_time.time_zone
       end
 
       ##
@@ -601,6 +620,8 @@ module Icalendar
       ##
       # Attempts to determine the system's timezone.
       # Tries multiple methods in order of reliability.
+      #
+      # @note see also https://rubygems.org/gems/timezone_local - it does about the same as this.
       #
       # @return [ActiveSupport::TimeZone, nil] the system timezone or nil if it cannot be determined.
       # @api private
