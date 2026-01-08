@@ -460,8 +460,8 @@ module Icalendar
       #
       # @param [Object] date_or_time any object representing a time (Icalendar::Values::DateTime,
       #   ActiveSupport::TimeWithZone, Date, Time, Integer, etc.)
-      # @param [ActiveSupport::TimeZone] target_tz the timezone to interpret the time in
-      #   before converting to floating time. If nil, uses component_timezone.
+      # @param [ActiveSupport::TimeZone,String] target_tz the timezone to interpret the time in
+      #   before converting to floating time.
       # @return [Time] a Ruby Time object with UTC offset 0 (floating time)
       # @api private
       #
@@ -470,9 +470,10 @@ module Icalendar
       #   floating = _to_floating_time(utc_time, ActiveSupport::TimeZone['Europe/Berlin'])
       #   # => 2018-01-01 16:00:00 +0000 (floating)
       def _to_floating_time(date_or_time, target_tz )
+        active_target_tz = ActiveSupport::TimeZone[target_tz]
 
         # Convert to TimeWithZone in target timezone first
-        time_with_zone = _to_time_with_zone(date_or_time, target_tz)
+        time_with_zone = _to_time_with_zone(date_or_time, active_target_tz)
 
         # Extract wall-clock components and create floating time (offset 0)
         Time.new(
