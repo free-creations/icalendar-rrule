@@ -452,7 +452,7 @@ module Icalendar
 
 
       ##
-      # Converts any time representation to "floating time" (Time object with UTC offset 0).
+      # Converts any time representation to "floating time" (a Time object with UTC-offset=0).
       #
       # Floating time represents "wall clock time" without timezone information,
       # useful for DST-safe recurrence calculations. The time components (year, month, day,
@@ -470,9 +470,9 @@ module Icalendar
       #   floating = _to_floating_time(utc_time, ActiveSupport::TimeZone['Europe/Berlin'])
       #   # => 2018-01-01 16:00:00 +0000 (floating)
       def _to_floating_time(date_or_time, target_tz )
-        active_target_tz = ActiveSupport::TimeZone[target_tz]
+        active_target_tz = _active_timezone(target_tz)
 
-        # Convert to TimeWithZone in target timezone first
+        # Convert to TimeWithZone in the target timezone first
         time_with_zone = _to_time_with_zone(date_or_time, active_target_tz)
 
         # Extract wall-clock components and create floating time (offset 0)
@@ -487,6 +487,16 @@ module Icalendar
         )
       end
 
+      ##
+      # Ensures the given `tz` is an ActiveSupport::TimeZone object.
+      #
+      # @param [ActiveSupport::TimeZone,String] tz an object that is either a timezone name or a timezone object.
+      # @return [ActiveSupport::TimeZone] the given timezone object or the timezone with the given name. Returns
+      # UTC if the given timezone-name is invalid.
+      # @api private
+      def _active_timezone(tz)
+        ActiveSupport::TimeZone[tz] || ActiveSupport::TimeZone['UTC']
+      end
 
       ##
       # Heuristic to determine the best timezone that shall be used in this component.

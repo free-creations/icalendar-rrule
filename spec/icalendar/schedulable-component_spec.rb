@@ -475,5 +475,24 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
   end
 
+  describe '#_active_timezone' do
+    using Icalendar::Schedulable
+    let(:timezone_object) { ActiveSupport::TimeZone['Asia/Kathmandu'] }
+    let(:timezone_name) { 'Asia/Kathmandu' }
+    let(:invalid_timezone_name) { 'Invalid/Timezone' }
+
+    # Create a dummy event for testing
+    let(:event) { Icalendar::Event.new }
+
+    it 'returns the timezone object when given a timezone object' do
+      expect(event._active_timezone(timezone_object)).to eq(timezone_object)
+    end
+    it 'returns the corresponding timezone object when given a valid timezone name' do
+      expect(event._active_timezone(timezone_name)).to eq(timezone_object)
+      end
+    it 'returns UTC timezone when given an invalid timezone name' do
+      expect(event._active_timezone(invalid_timezone_name)).to eq(ActiveSupport::TimeZone['UTC'])
+    end
+  end
 end
 # rubocop:enable RSpec/PredicateMatcher
