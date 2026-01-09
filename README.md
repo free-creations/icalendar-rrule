@@ -84,6 +84,20 @@ Fri. Apr. 27.  8:30-17:00
 For a more elaborate example, please have a look at 
 <https://github.com/free-creations/sk_calendar>
 
+## Configuration
+
+### Logging
+
+By default, the gem logs nothing. You can enable logging for debugging timezone issues:
+
+```ruby
+# Enable logging to STDOUT
+Icalendar::Rrule.logger = Logger.new($stdout)
+
+# Or use Rails logger
+Icalendar::Rrule.logger = Rails.logger
+```
+
 ## Used Libraries
 
 - [iCalendar Gem](https://github.com/icalendar/icalendar).

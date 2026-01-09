@@ -490,13 +490,30 @@ module Icalendar
       ##
       # Ensures the given `tz` is an ActiveSupport::TimeZone object.
       #
-      # @param [ActiveSupport::TimeZone,String] tz an object that is either a timezone name or a timezone object.
-      # @return [ActiveSupport::TimeZone] the given timezone object or the timezone with the given name. Returns
-      # UTC if the given timezone-name is invalid.
+      # If the given timezone name is invalid, logs a warning and returns UTC.
+      #
+      # @param [ActiveSupport::TimeZone,String] tz a timezone object or timezone name string
+      # @return [ActiveSupport::TimeZone] the given timezone object, the timezone with the given name,
+      #   or UTC if the given timezone-name is invalid
       # @api private
       def _active_timezone(tz)
-        ActiveSupport::TimeZone[tz] || ActiveSupport::TimeZone['UTC']
+        # If already a TimeZone object, return it
+        return tz if tz.is_a?(ActiveSupport::TimeZone)
+
+        # Try to lookup by name/value
+        result = ActiveSupport::TimeZone[tz]
+        return result if result
+
+        # Invalid timezone - log warning and return UTC
+        Icalendar::Rrule.logger.warn do
+          "[icalendar-rrule] Invalid timezone '#{tz.inspect}' - falling back to UTC"
+        end
+
+        # Fallback to UTC
+        # Use offset 0 as fallback if even 'UTC' lookup fails (should never happen)
+        ActiveSupport::TimeZone['UTC'] || ActiveSupport::TimeZone[0]
       end
+
 
       ##
       # Heuristic to determine the best timezone that shall be used in this component.

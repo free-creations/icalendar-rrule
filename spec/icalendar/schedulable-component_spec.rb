@@ -475,24 +475,47 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
   end
 
+
   describe '#_active_timezone' do
     using Icalendar::Schedulable
-    let(:timezone_object) { ActiveSupport::TimeZone['Asia/Kathmandu'] }
-    let(:timezone_name) { 'Asia/Kathmandu' }
-    let(:invalid_timezone_name) { 'Invalid/Timezone' }
 
-    # Create a dummy event for testing
-    let(:event) { Icalendar::Event.new }
+    let(:event) {Icalendar::Event.new}
 
-    it 'returns the timezone object when given a timezone object' do
-      expect(event._active_timezone(timezone_object)).to eq(timezone_object)
-    end
-    it 'returns the corresponding timezone object when given a valid timezone name' do
-      expect(event._active_timezone(timezone_name)).to eq(timezone_object)
+    context 'when given a valid TimeZone object' do
+      it 'returns the object unchanged' do
+        tz = ActiveSupport::TimeZone['Asia/Kathmandu']
+        expect(event._active_timezone(tz)).to eq(tz)
       end
-    it 'returns UTC timezone when given an invalid timezone name' do
-      expect(event._active_timezone(invalid_timezone_name)).to eq(ActiveSupport::TimeZone['UTC'])
+    end
+
+    context 'when given a valid timezone name' do
+      it 'returns the TimeZone object' do
+        result = event._active_timezone('Asia/Kathmandu')
+        expect(result).to be_a(ActiveSupport::TimeZone)
+        expect(result.name).to eq('Asia/Kathmandu')
+      end
+    end
+
+    context 'when given an invalid timezone name' do
+      it 'returns UTC and logs a warning' do
+        # Capture log output
+        log_output = StringIO.new
+        logger = Logger.new(log_output)
+        Icalendar::Rrule.logger = logger
+
+        result = event._active_timezone('Foo/Bar')
+
+        expect(result).to eq(ActiveSupport::TimeZone['UTC'])
+        expect(log_output.string).to include('Invalid timezone')
+        expect(log_output.string).to include('Foo/Bar')
+        expect(log_output.string).to include('falling back to UTC')
+
+        # Reset logger to silent
+        Icalendar::Rrule.logger = Logger.new(File::NULL)
+      end
     end
   end
+
+
 end
 # rubocop:enable RSpec/PredicateMatcher
