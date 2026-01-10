@@ -470,7 +470,7 @@ module Icalendar
       #   floating = _to_floating_time(utc_time, ActiveSupport::TimeZone['Europe/Berlin'])
       #   # => 2018-01-01 16:00:00 +0000 (floating)
       def _to_floating_time(date_or_time, target_tz )
-        active_target_tz = _active_timezone(target_tz)
+        active_target_tz = _ensure_active_timezone(target_tz)
 
         # Convert to TimeWithZone in the target timezone first
         time_with_zone = _to_time_with_zone(date_or_time, active_target_tz)
@@ -488,7 +488,7 @@ module Icalendar
       end
 
       ##
-      # Ensures the given `tz` is an ActiveSupport::TimeZone object.
+      # Ensures the given `tz` is either an ActiveSupport::TimeZone object or the name of an existing timezone.
       #
       # If the given timezone name is invalid, logs a warning and returns UTC.
       #
@@ -496,7 +496,7 @@ module Icalendar
       # @return [ActiveSupport::TimeZone] the given timezone object, the timezone with the given name,
       #   or UTC if the given timezone-name is invalid
       # @api private
-      def _active_timezone(tz)
+      def _ensure_active_timezone(tz)
         # If already a TimeZone object, return it
         return tz if tz.is_a?(ActiveSupport::TimeZone)
 

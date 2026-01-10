@@ -476,7 +476,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
   end
 
 
-  describe '#_active_timezone' do
+  describe '#_ensure_active_timezone' do
     using Icalendar::Schedulable
 
     let(:event) {Icalendar::Event.new}
@@ -484,13 +484,13 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     context 'when given a valid TimeZone object' do
       it 'returns the object unchanged' do
         tz = ActiveSupport::TimeZone['Asia/Kathmandu']
-        expect(event._active_timezone(tz)).to eq(tz)
+        expect(event._ensure_active_timezone(tz)).to eq(tz)
       end
     end
 
     context 'when given a valid timezone name' do
       it 'returns the TimeZone object' do
-        result = event._active_timezone('Asia/Kathmandu')
+        result = event._ensure_active_timezone('Asia/Kathmandu')
         expect(result).to be_a(ActiveSupport::TimeZone)
         expect(result.name).to eq('Asia/Kathmandu')
       end
@@ -503,7 +503,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
         logger = Logger.new(log_output)
         Icalendar::Rrule.logger = logger
 
-        result = event._active_timezone('Foo/Bar')
+        result = event._ensure_active_timezone('Foo/Bar')
 
         expect(result).to eq(ActiveSupport::TimeZone['UTC'])
         expect(log_output.string).to include('Invalid timezone')
