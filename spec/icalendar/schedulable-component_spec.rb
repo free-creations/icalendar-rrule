@@ -516,6 +516,44 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
     end
   end
 
+  describe '#_ensure_floating_time' do
+    using Icalendar::Schedulable
 
+    let(:event) {Icalendar::Event.new}
+
+    context 'when given a valid floating time object' do
+      it 'returns the object unchanged' do
+        f_time = Time.new(2026, 1, 10, 17, 05, 21,0)
+        expect(event._ensure_floating_time(f_time)).to eq(f_time)
+      end
+    end
+
+    context 'when given an invalid floating time object' do
+      it 'erases the offset and logs a warning' do
+        # Capture log output
+        log_output = StringIO.new
+        logger = Logger.new(log_output)
+        Icalendar::Rrule.logger = logger
+
+        faulty_time = Time.new(2026, 1, 10, 17, 05, 21,'+0200')
+        result = event._ensure_floating_time(faulty_time)
+
+        expect(result.year).to eq(2026)
+        expect(result.month).to eq(1)
+        expect(result.day).to eq(10)
+        expect(result.hour).to eq(17)
+        expect(result.min).to eq(5)
+        expect(result.sec).to eq(21)
+        expect(result.zone).to be_nil
+        expect(result.utc_offset).to eq(0)
+        expect(result.zone).to be_nil
+
+        expect(log_output.string).to include('floating_time must have zero UTC offset ')
+
+        # Reset logger to silent
+        Icalendar::Rrule.logger = Logger.new(File::NULL)
+      end
+    end
+  end
 end
 # rubocop:enable RSpec/PredicateMatcher

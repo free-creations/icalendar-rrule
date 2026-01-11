@@ -514,6 +514,36 @@ module Icalendar
         ActiveSupport::TimeZone['UTC'] || ActiveSupport::TimeZone[0]
       end
 
+      ##
+      # Ensures the given `floating_time` represents _floating time_ according to our definition.
+      #
+      # If the given time object has a non-zero UTC offset, logs a warning and erases the offset.
+      #
+      # @param [Time] floating_time a Time object representing floating time (expected to have zero UTC offset)
+      # @return [Time] the given floating_time object, possibly corrected to floating time.
+      # @api private
+      def _ensure_floating_time(floating_time)
+        throw "Invalid floating_time: #{floating_time.inspect}" unless floating_time.is_a?(Time)
+
+        # If already a correct floating time object, return it
+        return floating_time if floating_time.is_a?(Time) && floating_time.utc_offset.zero?
+
+         # Invalid floating time object - log warning and return a corrected floating time object.
+        Icalendar::Rrule.logger.warn do
+          "[icalendar-rrule] floating_time must have zero UTC offset '#{floating_time.inspect}' - ignoring offset"
+        end
+
+        # Erase offset and return a corrected floating time object.
+        Time.new(
+          floating_time.year,
+          floating_time.month,
+          floating_time.day,
+          floating_time.hour,
+          floating_time.min,
+          floating_time.sec,
+          0  # UTC offset 0 = floating time
+        )
+      end
 
       ##
       # Heuristic to determine the best timezone that shall be used in this component.
