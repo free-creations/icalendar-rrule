@@ -256,7 +256,188 @@ RSpec.describe 'Icalendar::Rrule::TimeRefinements' do
         end
       end
     end
+
+    describe '#into_timezone' do
+      # Use exotic timezones to avoid system-TZ conflicts
+      let(:kathmandu_tz) { ActiveSupport::TimeZone['Asia/Kathmandu'] } # UTC+5:45, no DST
+      let(:adelaide_tz) { ActiveSupport::TimeZone['Adelaide'] }        # UTC+9:30/+10:30, has DST
+      let(:newfoundland_tz) { ActiveSupport::TimeZone['Newfoundland'] } # UTC-3:30/-2:30, has DST
+
+      context 'when called on floating time' do
+        it 'embeds into Kathmandu timezone correctly' do
+          floating = Time.new(2026, 3, 30, 10, 0, 0, 0)
+          result = floating.into_timezone(kathmandu_tz)
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(3)
+          expect(result.day).to eq(30)
+          expect(result.hour).to eq(10)
+          expect(result.min).to eq(0)
+          expect(result.time_zone.name).to eq('Asia/Kathmandu')
+          expect(result.utc_offset).to eq(20700) # +05:45 in seconds
+        end
+
+        it 'embeds into Adelaide timezone during DST (summer)' do
+          # Adelaide DST is active from October to April
+          floating = Time.new(2026, 1, 15, 14, 30, 0, 0)
+          result = floating.into_timezone(adelaide_tz)
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.hour).to eq(14)
+          expect(result.min).to eq(30)
+          expect(result.time_zone.name).to eq('Adelaide')
+          expect(result.utc_offset).to eq(37800) # +10:30 (DST active)
+        end
+
+        it 'embeds into Adelaide timezone during winter (no DST)' do
+          # Adelaide standard time (no DST) in June
+          floating = Time.new(2026, 6, 15, 14, 30, 0, 0)
+          result = floating.into_timezone(adelaide_tz)
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.hour).to eq(14)
+          expect(result.min).to eq(30)
+          expect(result.time_zone.name).to eq('Adelaide')
+          expect(result.utc_offset).to eq(34200) # +09:30 (no DST)
+        end
+
+        it 'embeds into Newfoundland timezone with negative half-hour offset' do
+          floating = Time.new(2026, 7, 1, 16, 45, 0, 0)
+          result = floating.into_timezone(newfoundland_tz)
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.hour).to eq(16)
+          expect(result.min).to eq(45)
+          expect(result.time_zone.name).to eq('Newfoundland')
+          # Newfoundland DST: UTC-2:30 = -9000 seconds
+          expect(result.utc_offset).to eq(-9000)
+        end
+
+        it 'accepts timezone as string' do
+          floating = Time.new(2026, 5, 10, 12, 0, 0, 0)
+          result = floating.into_timezone('Asia/Kathmandu')
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.hour).to eq(12)
+          expect(result.time_zone.name).to eq('Asia/Kathmandu')
+        end
+
+        it 'accepts timezone as ActiveSupport::TimeZone object' do
+          floating = Time.new(2026, 5, 10, 12, 0, 0, 0)
+          result = floating.into_timezone(kathmandu_tz)
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.hour).to eq(12)
+          expect(result.time_zone).to eq(kathmandu_tz)
+        end
+
+        it 'handles midnight correctly' do
+          floating = Time.new(2026, 1, 1, 0, 0, 0, 0)
+          result = floating.into_timezone(kathmandu_tz)
+
+          expect(result.hour).to eq(0)
+          expect(result.min).to eq(0)
+          expect(result.time_zone.name).to eq('Asia/Kathmandu')
+        end
+
+        it 'handles end-of-day correctly' do
+          floating = Time.new(2026, 12, 31, 23, 59, 59, 0)
+          result = floating.into_timezone(adelaide_tz)
+
+          expect(result.hour).to eq(23)
+          expect(result.min).to eq(59)
+          expect(result.sec).to eq(59)
+        end
+      end
+
+      context 'when called on non-floating time' do
+        it 'raises ArgumentError for UTC time' do
+          utc_time = Time.utc(2026, 1, 10, 12, 0, 0)
+
+          expect { utc_time.into_timezone(kathmandu_tz) }.to raise_error(
+                                                               ArgumentError,
+                                                               /into_timezone can only be called on floating time/
+                                                             )
+        end
+
+        it 'raises ArgumentError for time with positive offset' do
+          zoned_time = Time.new(2026, 1, 10, 12, 0, 0, '+02:00')
+
+          expect { zoned_time.into_timezone(kathmandu_tz) }.to raise_error(
+                                                                 ArgumentError,
+                                                                 /into_timezone can only be called on floating time/
+                                                               )
+        end
+
+        it 'raises ArgumentError for time with negative offset' do
+          zoned_time = Time.new(2026, 1, 10, 12, 0, 0, '-05:00')
+
+          expect { zoned_time.into_timezone(adelaide_tz) }.to raise_error(
+                                                                ArgumentError,
+                                                                /into_timezone can only be called on floating time/
+                                                              )
+        end
+
+        it 'raises ArgumentError for local system time' do
+          local_time = Time.new(2026, 1, 10, 12, 0, 0)
+
+          expect { local_time.into_timezone(kathmandu_tz) }.to raise_error(
+                                                                 ArgumentError,
+                                                                 /into_timezone can only be called on floating time/
+                                                               )
+        end
+      end
+
+      context 'when given invalid timezone' do
+        it 'falls back to UTC and logs warning' do
+          log_output = StringIO.new
+          logger = Logger.new(log_output)
+          Icalendar::Rrule.logger = logger
+
+          floating = Time.new(2026, 5, 10, 14, 30, 0, 0)
+          result = floating.into_timezone('FooBar/BazQux')
+
+          expect(result).to be_a(ActiveSupport::TimeWithZone)
+          expect(result.time_zone.name).to eq('UTC')
+          expect(result.hour).to eq(14) # Wall-clock time preserved
+          expect(log_output.string).to include('Invalid timezone')
+          expect(log_output.string).to include('FooBar/BazQux')
+
+          # Reset logger to silent
+          Icalendar::Rrule.logger = Logger.new(File::NULL)
+        end
+      end
+
+      context 'round-trip conversion (to_floating → into_timezone)' do
+        it 'preserves wall-clock time in Kathmandu' do
+          original = kathmandu_tz.local(2026, 3, 30, 10, 15, 30)
+          floating = original.to_time.to_floating
+          result = floating.into_timezone(kathmandu_tz)
+
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(3)
+          expect(result.day).to eq(30)
+          expect(result.hour).to eq(10)
+          expect(result.min).to eq(15)
+          expect(result.sec).to eq(30)
+          expect(result.time_zone.name).to eq('Asia/Kathmandu')
+        end
+
+        it 'preserves wall-clock time across DST boundary in Adelaide' do
+          # March 30, 2026: DST ends in Adelaide (03:00 → 02:00)
+          original = adelaide_tz.local(2026, 3, 30, 10, 0, 0)
+          floating = original.to_time.to_floating
+          result = floating.into_timezone(adelaide_tz)
+
+          expect(result.hour).to eq(10)
+          expect(result.min).to eq(0)
+          expect(result.time_zone.name).to eq('Adelaide')
+        end
+      end
+    end
   end
+
 
   describe 'semantic difference between floating time and UTC' do
     let(:floating) { Time.new(2026, 6, 15, 14, 30, 0, 0) }

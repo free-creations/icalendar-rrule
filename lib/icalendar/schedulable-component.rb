@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 require 'ice_cube'
+require 'active_support/time'
 require 'active_support/time_with_zone'
+require 'active_support/values/time_zone'
+require 'date'
+require 'time'
 
 module Icalendar
   ##

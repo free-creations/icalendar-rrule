@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# frozen_string_literal: true
+require 'time'
+require 'active_support/time_with_zone'
+require 'active_support/values/time_zone'
 
 module Icalendar
   module Rrule
@@ -45,7 +47,7 @@ module Icalendar
         #
         def floating?
           zone.nil? && utc_offset.zero?
-        rescue
+        rescue StandardError
           false
         end
 
@@ -68,6 +70,51 @@ module Icalendar
           end
 
           to_floating
+        end
+
+
+        ##
+        # Embeds floating time into a specific timezone.
+        #
+        # Interprets the wall-clock components (year, month, day, hour, min, sec)
+        # as local time in the given timezone, creating a TimeWithZone.
+        #
+        # This is the inverse operation to `to_floating`.
+        #
+        # @param [ActiveSupport::TimeZone, String] timezone the target timezone
+        # @return [ActiveSupport::TimeWithZone] the time embedded in the given timezone
+        # @raise [ArgumentError] if called on non-floating time (to prevent accidental misuse)
+        #
+        # @example Embed floating time in Berlin timezone
+        #   floating = Time.new(2026, 3, 30, 10, 0, 0, 0)  # 10:00 floating
+        #   berlin_time = floating.into_timezone('Europe/Berlin')
+        #   # => 2026-03-30 10:00:00 +0200 (CEST, because DST active)
+        #
+        # @example Embed the same floating time in New York
+        #   ny_time = floating.into_timezone('America/New_York')
+        #   # => 2026-03-30 10:00:00 -0400 (EDT, because DST active)
+        #
+        def into_timezone(timezone)
+          unless floating?
+            raise ArgumentError, "Time::into_timezone can only be called on floating time, got: #{inspect}"
+          end
+
+          # Ensure we have an ActiveSupport::TimeZone object
+          tz = if timezone.is_a?(ActiveSupport::TimeZone)
+                 timezone
+               else
+                 ActiveSupport::TimeZone[timezone]
+               end
+
+          unless tz
+            Icalendar::Rrule.logger.warn do
+              "[icalendar-rrule] Invalid timezone '#{timezone.inspect}' in Time::into_timezone - falling back to UTC"
+            end
+            tz = ActiveSupport::TimeZone['UTC']
+          end
+
+          # Interpret wall-clock components as local time in target timezone
+          tz.local(year, month, day, hour, min, sec)
         end
 
       end
