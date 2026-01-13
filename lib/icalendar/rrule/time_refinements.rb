@@ -48,6 +48,28 @@ module Icalendar
         rescue
           false
         end
+
+        ##
+        # Converts to floating time. No questions asked.
+        # @return [Time] floating time
+        def to_floating
+          return self if floating?
+          Time.new(year, month, day, hour, min, sec, 0)
+        end
+
+        ##
+        # Ensures this is floating-time, warns if conversion needed.
+        # @return [Time] floating time
+        def ensure_floating
+          return self if floating?
+
+          Icalendar::Rrule.logger.warn do
+            "[icalendar-rrule] Time should be floating but has offset: '#{inspect}' - converting"
+          end
+
+          to_floating
+        end
+
       end
     end
   end

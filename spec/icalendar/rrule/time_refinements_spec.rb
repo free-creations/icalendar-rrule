@@ -69,6 +69,7 @@ RSpec.describe 'Icalendar::Rrule::TimeRefinements' do
         it 'returns false' do
           expect(zoned_time.floating?).to be false
         end
+
         it 'has a nil zone (unfortunately)' do
           expect(zoned_time.zone).to be_nil
         end
@@ -113,6 +114,145 @@ RSpec.describe 'Icalendar::Rrule::TimeRefinements' do
         it 'handles leap year date' do
           leap_day = Time.new(2024, 2, 29, 12, 0, 0, 0)
           expect(leap_day.floating?).to be true
+        end
+      end
+    end
+
+    describe '#to_floating' do
+      context 'when given a valid floating time object' do
+        it 'returns the object unchanged (same object_id)' do
+          f_time = Time.new(2026, 1, 10, 17, 5, 21, 0)
+          result = f_time.to_floating
+
+          expect(result).to equal(f_time) # same object
+          expect(result.floating?).to be true
+        end
+      end
+
+      context 'when given a time with positive offset' do
+        it 'converts to floating time preserving wall-clock components' do
+          zoned_time = Time.new(2026, 1, 10, 17, 5, 21, '+02:00')
+          result = zoned_time.to_floating
+
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(1)
+          expect(result.day).to eq(10)
+          expect(result.hour).to eq(17)
+          expect(result.min).to eq(5)
+          expect(result.sec).to eq(21)
+          expect(result.utc_offset).to eq(0)
+          expect(result.zone).to be_nil
+          expect(result.floating?).to be true
+        end
+      end
+
+      context 'when given a time with negative offset' do
+        it 'converts to floating time preserving wall-clock components' do
+          zoned_time = Time.new(2026, 7, 15, 9, 30, 0, '-05:00')
+          result = zoned_time.to_floating
+
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(7)
+          expect(result.day).to eq(15)
+          expect(result.hour).to eq(9)
+          expect(result.min).to eq(30)
+          expect(result.sec).to eq(0)
+          expect(result.floating?).to be true
+        end
+      end
+
+      context 'when given a UTC time' do
+        it 'converts to floating time' do
+          utc_time = Time.utc(2026, 3, 20, 12, 0, 0)
+          result = utc_time.to_floating
+
+          expect(result.hour).to eq(12)
+          expect(result.utc?).to be false
+          expect(result.floating?).to be true
+        end
+      end
+
+      context 'when given a local system time' do
+        it 'converts to floating time preserving wall-clock components' do
+          local_time = Time.new(2026, 1, 10, 17, 5, 21)
+          result = local_time.to_floating
+
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(1)
+          expect(result.day).to eq(10)
+          expect(result.hour).to eq(17)
+          expect(result.min).to eq(5)
+          expect(result.sec).to eq(21)
+          expect(result.floating?).to be true
+        end
+      end
+    end
+
+    describe '#ensure_floating' do
+      context 'when given a valid floating time object' do
+        it 'returns the object unchanged (same object_id)' do
+          f_time = Time.new(2026, 1, 10, 17, 5, 21, 0)
+          result = f_time.ensure_floating
+
+          expect(result).to equal(f_time) # same object
+        end
+
+        it 'does not log a warning' do
+          log_output = StringIO.new
+          logger = Logger.new(log_output)
+          Icalendar::Rrule.logger = logger
+
+          f_time = Time.new(2026, 1, 10, 17, 5, 21, 0)
+          f_time.ensure_floating
+
+          expect(log_output.string).to be_empty
+
+          # Reset logger to silent
+          Icalendar::Rrule.logger = Logger.new(File::NULL)
+        end
+      end
+
+      context 'when given a time with offset' do
+        it 'converts to floating time and logs a warning' do
+          log_output = StringIO.new
+          logger = Logger.new(log_output)
+          Icalendar::Rrule.logger = logger
+
+          faulty_time = Time.new(2026, 1, 10, 17, 5, 21, '+02:00')
+          result = faulty_time.ensure_floating
+
+          expect(result.year).to eq(2026)
+          expect(result.month).to eq(1)
+          expect(result.day).to eq(10)
+          expect(result.hour).to eq(17)
+          expect(result.min).to eq(5)
+          expect(result.sec).to eq(21)
+          expect(result.utc_offset).to eq(0)
+          expect(result.zone).to be_nil
+          expect(result.floating?).to be true
+
+          expect(log_output.string).to include('should be floating')
+          expect(log_output.string).to include('converting')
+
+          # Reset logger to silent
+          Icalendar::Rrule.logger = Logger.new(File::NULL)
+        end
+      end
+
+      context 'when given a UTC time' do
+        it 'converts to floating time and logs a warning' do
+          log_output = StringIO.new
+          logger = Logger.new(log_output)
+          Icalendar::Rrule.logger = logger
+
+          utc_time = Time.utc(2026, 1, 10, 17, 5, 21)
+          result = utc_time.ensure_floating
+
+          expect(result.floating?).to be true
+          expect(log_output.string).to include('should be floating')
+
+          # Reset logger to silent
+          Icalendar::Rrule.logger = Logger.new(File::NULL)
         end
       end
     end
