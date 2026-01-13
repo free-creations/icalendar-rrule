@@ -6,6 +6,7 @@ require 'icalendar/scannable-calendar'
 
 require 'icalendar/rrule/version'
 require 'icalendar/rrule/occurrence'
+require 'icalendar/rrule/time_refinements'
 require 'logger'
 
 module Icalendar
