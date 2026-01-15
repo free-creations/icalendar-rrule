@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-
+require 'icalendar-rrule'
 ##
 # Tests for Time refinements that support iCalendar time concepts.
 #

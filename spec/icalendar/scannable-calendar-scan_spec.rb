@@ -2,6 +2,7 @@
 
 require 'icalendar/rrule'
 using Icalendar::Scannable
+using Icalendar::Schedulable
 
 RSpec.context 'when `using Icalendar::Schedulable::scan`' do
 
@@ -149,7 +150,7 @@ RSpec.context 'when `using Icalendar::Schedulable::scan`' do
           expect(last_event.start_time.min).to eq(0)
         end
 
-        it "lives in Europe/Berlin" do
+        it "lives in in the correct time zone" do
           expect(last_event.start_time.time_zone.name).to eq(time_zone)
         end
       end

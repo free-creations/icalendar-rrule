@@ -257,9 +257,10 @@ module Icalendar
       end
 
       ##
-      # Make sure, that we can always query for an _exdate_ array.
-      # @return [array<ActiveSupport::TimeWithZone>] an array of _ical exdates_ (or an empty array
-      #                if no repeat-rules are defined for this component).
+      # Make sure that we can always query for an `_exdate` array.
+      # @return [Array] an array of _ical exdates_ in their original format
+      #   (may be Icalendar::Values::DateTime, Icalendar::Values::Date, or other date/time types).
+      #   Returns an empty array if no exdates are defined or an error occurs.
       # @api private
       def _exdates
         Array(exdate).flatten
@@ -317,7 +318,7 @@ module Icalendar
       ##
       # Like the for _exdates, also for these dates do not schedule recurrence items.
       #
-      # @return [array<ActiveSupport::TimeWithZone>] an array of dates.
+      # @return [Array<Object>] an array of dates.
       # @api private
       def _overwritten_dates
         result = []
@@ -331,7 +332,7 @@ module Icalendar
       end
 
       ##
-      # Make sure, that we can always query for an rdate(Recurrence Date) array.
+      # Make sure that we can always query for a rdate(Recurrence Date) array.
       # @return [array] an array of _ical rdates_ (or an empty array
       #                if no repeat-rules are defined for this component).
       # @api private
@@ -349,8 +350,8 @@ module Icalendar
         duration_seconds = (end_time.to_i - start_time.to_i)  # Integer seconds
 
         # Create a schedule with start_time and duration
-        # Convert to Ruby Time for IceCube compatibility
-        schedule = IceCube::Schedule.new(start_time.to_time.utc, duration: duration_seconds)
+        # Convert to floating Time for IceCube compatibility
+        schedule = IceCube::Schedule.new(_to_floating_time(start_time, _timezone_for_start), duration: duration_seconds)
 
         _rrules.each do |rrule|
           ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
@@ -358,16 +359,16 @@ module Icalendar
         end
 
         _exdates.each do |ex_time|
-          schedule.add_exception_time(ex_time.to_time.utc)
+          schedule.add_exception_time(_to_floating_time(ex_time, _timezone_for_start))
         end
 
         _overwritten_dates.each do |overwritten_time|
-          schedule.add_exception_time(overwritten_time.to_time.utc)
+          schedule.add_exception_time(_to_floating_time(overwritten_time, _timezone_for_start))
         end
 
         rdates = _rdates
         rdates.each do |recurrence_time|
-          schedule.add_recurrence_time(recurrence_time.to_time.utc)
+          schedule.add_recurrence_time(_to_floating_time(recurrence_time, _timezone_for_start))
         end
         schedule
       end
@@ -456,11 +457,10 @@ module Icalendar
 
 
       ##
-      # Converts any time representation to "floating time" (a Time object with UTC-offset=0).
+      # Converts any time to floating time, CONVERTING to the target timezone first.
       #
-      # Floating time represents "wall clock time" without timezone information,
-      # useful for DST-safe recurrence calculations. The time components (year, month, day,
-      # hour, minute, second) are preserved, but timezone information is stripped.
+      # Use this when you want the wall-clock time in a DIFFERENT timezone.
+      # Example: EXDATE:20260330T080000Z (UTC) with event in Berlin → 10:00 floating (Berlin wall-clock)
       #
       # @param [Object] date_or_time any object representing a time (Icalendar::Values::DateTime,
       #   ActiveSupport::TimeWithZone, Date, Time, Integer, etc.)
@@ -491,6 +491,45 @@ module Icalendar
         )
       end
 
+      ##
+      # Converts any time representation to "floating time", automatically detecting the timezone.
+      #
+      # Unlike `_to_floating_time`, this method attempts to extract the timezone from the
+      # input object itself before falling back to hints or defaults.
+      #
+      # Timezone resolution order:
+      # 1. Explicit timezone from the input object (TZID parameter, TimeWithZone#time_zone, etc.)
+      # 2. The provided timezone_hint parameter
+      # 3. UTC as last resort
+      #
+      # @param [Object] date_or_time any object representing a time (Icalendar::Values::DateTime,
+      #   ActiveSupport::TimeWithZone, Date, Time, Integer, etc.)
+      # @param [ActiveSupport::TimeZone, String, nil] timezone_hint optional timezone to use
+      #   if the input object has no explicit timezone information.
+      # @return [Time] a Ruby Time object with UTC offset 0 (floating time)
+      # @api private
+      #
+      # @example EXDATE with explicit TZID uses that timezone
+      #   # EXDATE;TZID=America/New_York:20180707T120000
+      #   floating = _to_floating_time_auto(exdate_value)
+      #   # => 2018-07-07 12:00:00 +0000 (floating, preserved NY wall-clock time)
+      #
+      # @example EXDATE in UTC (Zulu) uses timezone_hint for wall-clock interpretation
+      #   # EXDATE:20180707T160000Z (UTC) with hint Europe/Berlin
+      #   floating = _to_floating_time_auto(exdate_value, 'Europe/Berlin')
+      #   # => 2018-07-07 18:00:00 +0000 (floating, converted to Berlin wall-clock time)
+      #
+      # @example Floating EXDATE passes through unchanged
+      #   # EXDATE:20180707T120000 (no Z, no TZID)
+      #   floating = _to_floating_time_auto(exdate_value)
+      #   # => 2018-07-07 12:00:00 +0000 (floating)
+      #
+      # @deprecated Use `_to_floating_time` instead.
+      def _to_floating_time_auto(date_or_time, timezone_hint = nil)
+        # Try to extract timezone from the date_time parameter first
+        timezone = _extract_explicit_timezone(date_or_time) || timezone_hint || 'UTC'
+        _to_floating_time(date_or_time, timezone)
+      end
       ##
       # Ensures the given `tz` is either an ActiveSupport::TimeZone object or the name of an existing timezone.
       #

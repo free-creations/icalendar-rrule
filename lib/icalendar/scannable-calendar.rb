@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'icalendar/rrule/time_refinements'
+
 module Icalendar
   ##
   # Refines the  Icalendar::Calendar class by adding
@@ -14,6 +16,7 @@ module Icalendar
     # Icalendar::Calendar class
     refine Icalendar::Calendar do # rubocop:disable Metrics/BlockLength
       using Icalendar::Schedulable
+      using Icalendar::Rrule::TimeRefinements
       ##
       # @param[date_time] begin_time
       # @param[date_time] closing_time
@@ -49,23 +52,33 @@ module Icalendar
       end
 
       private def _occurrences_between(components, begin_time, closing_time)
-        # ice_cube does not support timezones well, so we have to convert the given timezones to UTC.
+        # ice_cube does not support timezones well, so we have to work internally with _floating times_.
         result = []
         components.each do |base_component|
-          ice_cube_occurrences = base_component.schedule.occurrences_between(begin_time.to_time.utc, closing_time.to_time.utc)
+          start_timezone = base_component._timezone_for_start
+          end_timezone = base_component._timezone_for_end
+          # we assume that that `start_timezone` and`end_timezone` are also appropriate for start and closing time of the scan.
+          # todo: simlify by using base_component._to_floating_time_auto
+          zoned_begin_time = base_component._date_to_time_with_zone(begin_time, start_timezone)
+          zoned_closing_time = base_component._date_to_time_with_zone(closing_time, end_timezone)
+
+          floating_begin_time = zoned_begin_time.to_time.to_floating
+          floating_closing_time = zoned_closing_time.to_time.to_floating
+
+          ice_cube_occurrences = base_component.schedule.occurrences_between(floating_begin_time, floating_closing_time)
 
           ice_cube_occurrences.each do |ice_oc|
             # retrieve start and end for this ice_cube occurrence and convert into the
             # target timezones
             ice_comp_start_time = ice_oc.start_time
-            # we assert that ice_comp_start_time is UTC here.
-            fail "expected UTC-time for ice_start_time" unless  ice_comp_start_time.utc?
-            start_tz = ice_comp_start_time.in_time_zone(base_component._timezone_for_start)
+            # we assert that ice_comp_start_time is floating here.
+            fail "expected floating-time for ice_start_time" unless  ice_comp_start_time.floating?
+            start_tz = ice_comp_start_time.into_timezone(start_timezone)
 
             ice_end_time = ice_oc.end_time
-            # we assert that ice_end_time is UTC here.
-            fail "expected UTC-time for ice_end_time" unless ice_end_time.utc?
-            end_tz = ice_end_time.in_time_zone(base_component._timezone_for_end)
+            # we assert that ice_end_time is floating here.
+            fail "expected floating-time for ice_end_time" unless ice_end_time.floating?
+            end_tz = ice_end_time.into_timezone(end_timezone)
 
             new_oc = Icalendar::Rrule::Occurrence.new(self, base_component, start_tz, end_tz)
             result << new_oc
