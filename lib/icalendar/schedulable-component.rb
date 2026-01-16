@@ -354,7 +354,9 @@ module Icalendar
         schedule = IceCube::Schedule.new(_to_floating_time(start_time, _timezone_for_start), duration: duration_seconds)
 
         _rrules.each do |rrule|
-          ice_cube_recurrence_rule = IceCube::Rule.from_ical(rrule)
+          # Convert RRULE's UNTIL time (if present) to floating time in event's timezone
+          normalized_rrule = _normalize_rrule_until(rrule, _timezone_for_start)
+          ice_cube_recurrence_rule = IceCube::Rule.from_ical(normalized_rrule)
           schedule.add_recurrence_rule(ice_cube_recurrence_rule)
         end
 
@@ -371,6 +373,56 @@ module Icalendar
           schedule.add_recurrence_time(_to_floating_time(recurrence_time, _timezone_for_start))
         end
         schedule
+      end
+
+      ##
+      # Normalizes an RRULE string by converting any UNTIL time to floating time.
+      #
+      # Ice Cube expects all times in the same "timezone" as the schedule's start time.
+      # Since we use floating time for DST safety, we must convert UNTIL times too.
+      #
+      # @param [String] rrule_string the RRULE string (e.g., "FREQ=WEEKLY;UNTIL=20180615T120000Z")
+      # @param [ActiveSupport::TimeZone] target_timezone the timezone to interpret UNTIL in
+      # @return [String] the normalized RRULE string with floating UNTIL time
+      # @api private
+      #
+      # @example
+      #   # Event in Europe/Berlin (UTC+2), UNTIL in UTC
+      #   rrule = "FREQ=WEEKLY;UNTIL=20180615T120000Z"
+      #   _normalize_rrule_until(rrule, 'Europe/Berlin')
+      #   # => "FREQ=WEEKLY;UNTIL=20180615T140000"  (12:00 UTC → 14:00 Berlin, no Z)
+      #
+      def _normalize_rrule_until(rrule_string, target_timezone)
+        # Match UNTIL with UTC time (Z suffix) or with explicit time
+        # Matches: UNTIL=20180615T120000Z or UNTIL=20180615T120000
+        rrule_string.gsub(/UNTIL=(\d{8}T\d{6})(Z?)/) do |_match|
+          timestamp_str = $1
+          is_utc = $2 == 'Z'
+
+          # RFC 5545 floating time (no Z): pass through unchanged
+          next "UNTIL=#{timestamp_str}" unless is_utc
+
+          # Parse the timestamp
+          year = timestamp_str[0..3].to_i
+          month = timestamp_str[4..5].to_i
+          day = timestamp_str[6..7].to_i
+          hour = timestamp_str[9..10].to_i
+          minute = timestamp_str[11..12].to_i
+          second = timestamp_str[13..14].to_i
+
+          # Create Time object (UTC if 'Z', otherwise floating)
+          time_obj = if is_utc
+                       Time.utc(year, month, day, hour, minute, second)
+                     else
+                       Time.new(year, month, day, hour, minute, second, 0) # floating
+                     end
+
+          # Convert to floating time in target timezone
+          floating_until = _to_floating_time(time_obj, target_timezone)
+
+          # Format back to RRULE format (WITHOUT 'Z' - floating time)
+          "UNTIL=#{floating_until.strftime('%Y%m%dT%H%M%S')}"
+        end
       end
 
       ##

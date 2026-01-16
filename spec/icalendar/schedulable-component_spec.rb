@@ -517,5 +517,87 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
   end
 
 
+  describe '#_normalize_rrule_until' do
+    using Icalendar::Schedulable
+
+    # Use exotic timezone to avoid system-TZ interference
+    let(:tokyo_tz) { ActiveSupport::TimeZone['Asia/Tokyo'] } # UTC+9, no DST
+    let(:caracas_tz) { ActiveSupport::TimeZone['America/Caracas'] } # UTC-4, no DST
+
+    # Create a dummy event for testing
+    let(:event) do
+      evt = Icalendar::Event.new
+      evt.dtstart = Icalendar::Values::DateTime.new('20180601T140000', tzid: 'Asia/Tokyo')
+      evt
+    end
+
+    context 'when RRULE has UTC UNTIL time (Z suffix)' do
+      it 'converts to floating time in target timezone' do
+        # UNTIL in UTC: 2018-06-15 12:00:00 UTC
+        # Tokyo: UTC+9 → 21:00 local time
+        rrule = 'FREQ=WEEKLY;UNTIL=20180615T120000Z'
+
+        normalized = event._normalize_rrule_until(rrule, tokyo_tz)
+
+        expect(normalized).to eq('FREQ=WEEKLY;UNTIL=20180615T210000')
+        expect(normalized).not_to include('Z') # No Z suffix in floating time
+      end
+
+      it 'handles negative UTC offset correctly' do
+        # UNTIL in UTC: 2018-06-15 16:00:00 UTC
+        # Caracas: UTC-4 → 12:00 local time
+        rrule = 'FREQ=DAILY;UNTIL=20180615T160000Z'
+
+        normalized = event._normalize_rrule_until(rrule, caracas_tz)
+
+        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180615T120000')
+      end
+    end
+
+    context 'when RRULE has floating UNTIL time (no Z suffix)' do
+      it 'preserves floating time unchanged' do
+        # Already floating-time; should pass through
+        rrule = 'FREQ=MONTHLY;UNTIL=20181231T235959'
+
+        normalized = event._normalize_rrule_until(rrule, tokyo_tz)
+
+        expect(normalized).to eq('FREQ=MONTHLY;UNTIL=20181231T235959')
+      end
+    end
+
+    context 'when RRULE has no UNTIL parameter' do
+      it 'returns RRULE unchanged' do
+        rrule = 'FREQ=YEARLY;BYMONTH=3;BYDAY=2SU'
+
+        normalized = event._normalize_rrule_until(rrule, tokyo_tz)
+
+        expect(normalized).to eq('FREQ=YEARLY;BYMONTH=3;BYDAY=2SU')
+      end
+    end
+
+    context 'when RRULE has multiple parameters with UNTIL' do
+      it 'only replaces UNTIL parameter' do
+        rrule = 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20180801T180000Z;INTERVAL=2'
+
+        normalized = event._normalize_rrule_until(rrule, caracas_tz)
+
+        # 18:00 UTC → 14:00 Caracas (UTC-4)
+        expect(normalized).to eq('FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20180801T140000;INTERVAL=2')
+      end
+    end
+
+    context 'when UNTIL time crosses midnight during conversion' do
+      it 'handles date boundary correctly' do
+        # 2018-06-15 02:00:00 UTC → 2018-06-14 22:00:00 Caracas (UTC-4)
+        rrule = 'FREQ=DAILY;UNTIL=20180615T020000Z'
+
+        normalized = event._normalize_rrule_until(rrule, caracas_tz)
+
+        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180614T220000')
+      end
+    end
+  end
+
+
 end
 # rubocop:enable RSpec/PredicateMatcher
