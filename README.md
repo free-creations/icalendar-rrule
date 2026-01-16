@@ -98,6 +98,58 @@ Icalendar::Rrule.logger = Logger.new($stdout)
 Icalendar::Rrule.logger = Rails.logger
 ```
 
+## Time handling (start/end) and timezones
+
+This gem represents both VEVENTs and VTODOs uniformly as *occurrences* with a
+normalised `start_time` and `end_time` (both `ActiveSupport::TimeWithZone`).
+
+### Normalising start_time / end_time
+
+Input components can specify time using `DTSTART`, `DTEND`, `DUE` and/or `DURATION`.
+In practice these fields are often incomplete or inconsistent, therefore this gem
+derives a sensible time range using the following rules:
+
+- `start_time`
+  1. If `DTSTART` is present: `start_time = DTSTART`
+  2. Else if `DUE` and `DURATION` are present: `start_time = DUE - DURATION`
+  3. Else if only `DUE` is present: `start_time = DUE` (deadline-only / zero-duration)
+  4. Else: a null fallback is used (Unix epoch)
+
+- `end_time`
+  1. If `DUE` is present: `end_time = DUE`
+  2. Else if `DTEND` is present: `end_time = DTEND`
+  3. Else if `DTSTART` is present: `end_time = start_time + duration`
+  4. Else: `end_time = epoch + duration`
+
+For _all-day VEVENTs_ (`DTSTART` as DATE) without `DTEND`, `DUE` and `DURATION`, the
+duration is assumed to be one day (RFC 5545).
+
+### Recurrence semantics (RRULE)
+
+Recurrences are expanded in floating (wall-clock) time. The `RRULE` is unrolled
+without applying offsets during expansion; timezone conversion is applied only
+after occurrences have been generated.
+
+Rationale:
+
+- By keeping recurrence logic in wall-clock time and deferring timezone application,
+  this gem avoids DST-related drift, ambiguous instants and retroactive rule changes,
+  while remaining predictable and deterministic.
+
+### Timezone resolution
+
+When mapping values to `ActiveSupport::TimeWithZone`, timezones are resolved with
+the following precedence:
+
+1. An explicit timezone on the value itself (`TZID` / `TimeWithZone`)
+2. A timezone defined by the parent calendar (`VTIMEZONE` / calendar settings)
+3. The system timezone
+4. UTC as a final fallback
+
+Floating date-times(i.e. `DATE-TIME` values without `TZID` and without `Z`) are interpreted as 
+local time and materialised in the _system time zone_.
+
+
 ## Used Libraries
 
 - [iCalendar Gem](https://github.com/icalendar/icalendar).
