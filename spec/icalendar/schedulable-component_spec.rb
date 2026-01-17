@@ -539,8 +539,8 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
         normalized = event._normalize_rrule_until(rrule, tokyo_tz)
 
-        expect(normalized).to eq('FREQ=WEEKLY;UNTIL=20180615T210000')
-        expect(normalized).not_to include('Z') # No Z suffix in floating time
+        expect(normalized).to eq('FREQ=WEEKLY;UNTIL=20180615T210000Z')
+        expect(normalized).to include('Z') # Z suffix in floating time is the ice_cube hack!
       end
 
       it 'handles negative UTC offset correctly' do
@@ -550,7 +550,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
         normalized = event._normalize_rrule_until(rrule, caracas_tz)
 
-        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180615T120000')
+        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180615T120000Z')
       end
     end
 
@@ -561,7 +561,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
         normalized = event._normalize_rrule_until(rrule, tokyo_tz)
 
-        expect(normalized).to eq('FREQ=MONTHLY;UNTIL=20181231T235959')
+        expect(normalized).to eq('FREQ=MONTHLY;UNTIL=20181231T235959Z')
       end
     end
 
@@ -582,7 +582,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
         normalized = event._normalize_rrule_until(rrule, caracas_tz)
 
         # 18:00 UTC → 14:00 Caracas (UTC-4)
-        expect(normalized).to eq('FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20180801T140000;INTERVAL=2')
+        expect(normalized).to eq('FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20180801T140000Z;INTERVAL=2')
       end
     end
 
@@ -593,7 +593,7 @@ RSpec.context 'when `using Icalendar::Schedulable`' do
 
         normalized = event._normalize_rrule_until(rrule, caracas_tz)
 
-        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180614T220000')
+        expect(normalized).to eq('FREQ=DAILY;UNTIL=20180614T220000Z')
       end
     end
   end

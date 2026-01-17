@@ -350,6 +350,15 @@ RSpec.describe Icalendar::Scannable do
     # DTSTART;TZID=Europe/Berlin:20180602T180000
     # END:VEVENT
 
+    around do |example|
+
+      original_logger = Icalendar::Rrule.logger
+      Icalendar::Rrule.logger = Logger.new($stdout)
+
+      example.run
+      Icalendar::Rrule.logger = original_logger
+    end
+
     subject(:calendar) { FixtureHelper.parse_to_calendar('exception2.ics') }
 
     let(:begin_time) { Date.parse('2018-05-25') }
@@ -367,6 +376,12 @@ RSpec.describe Icalendar::Scannable do
     # rubocop:enable RSpec/MultipleExpectations
 
     specify '#scan returns three event-occurrences in the time span' do
+      puts "ENV['TZ']: #{ENV['TZ']}"
+      puts "Scan result size: #{scan_result.size}"
+      scan_result.each_with_index do |occ, i|
+        puts "  #{i}: #{occ.start_time} (#{occ.start_time.time_zone.name})"
+      end
+
       expect(scan_result.size).to eq(3)
     end
 

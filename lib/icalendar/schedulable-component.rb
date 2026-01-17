@@ -376,21 +376,51 @@ module Icalendar
       end
 
       ##
-      # Normalizes an RRULE string by converting any UNTIL time to floating time.
+      # Normalizes an RRULE string by converting UNTIL times to a format IceCube can handle.
       #
-      # Ice Cube expects all times in the same "timezone" as the schedule's start time.
-      # Since we use floating time for DST safety, we must convert UNTIL times too.
+      # ## The IceCube System-Timezone Problem
+      #
+      # IceCube has a critical flaw: it interprets floating times (without Z suffix) in the
+      # **system timezone** at runtime, making PRODUCTION BEHAVIOR dependent on the server's
+      # timezone configuration. This isn't just a test problem - the same calendar file would
+      # produce different occurrences on different servers!
+      #
+      # Example with `UNTIL=20180609T190000` (floating, should be 19:00 in event's timezone):
+      # - Server in Detroit (UTC-4): IceCube interprets as 19:00 Detroit → 23:00 UTC ❌
+      # - Server in Brisbane (UTC+10): IceCube interprets as 19:00 Brisbane → 09:00 UTC ❌
+      # - Server in Berlin (UTC+2): IceCube interprets as 19:00 Berlin → 17:00 UTC ✅ (by luck!)
+      #
+      # This means the SAME iCalendar file would stop repeating at different times depending
+      # on WHERE the application is deployed. This is completely unacceptable for a calendar
+      # library that's supposed to provide consistent, predictable behavior.
+      #
+      # ## The Hack: Always append Z suffix
+      #
+      # IceCube treats times with Z suffix as absolute values and skips timezone conversion:
+      # - `UNTIL=20180609T190000Z` → IceCube uses 19:00 directly, no system-TZ applied ✅
+      #
+      # This is **technically incorrect** (Z means UTC in RFC 5545, not floating time), but it's
+      # the only way to get consistent, server-timezone-independent behavior. We convert times
+      # to the event's timezone first, then append Z to "lock in" that wall-clock time and
+      # prevent IceCube from applying system-TZ conversion.
+      #
+      # Without this hack, deployments would behave differently based on server timezone,
+      # breaking calendar consistency across environments.
       #
       # @param [String] rrule_string the RRULE string (e.g., "FREQ=WEEKLY;UNTIL=20180615T120000Z")
-      # @param [ActiveSupport::TimeZone] target_timezone the timezone to interpret UNTIL in
-      # @return [String] the normalized RRULE string with floating UNTIL time
+      # @param [ActiveSupport::TimeZone] target_timezone the event's timezone
+      # @return [String] the normalized RRULE string with UNTIL time + Z suffix
       # @api private
       #
-      # @example
-      #   # Event in Europe/Berlin (UTC+2), UNTIL in UTC
-      #   rrule = "FREQ=WEEKLY;UNTIL=20180615T120000Z"
+      # @example RFC 5545 floating time gets Z appended (the hack!)
+      #   rrule = "FREQ=WEEKLY;UNTIL=20180609T190000"
       #   _normalize_rrule_until(rrule, 'Europe/Berlin')
-      #   # => "FREQ=WEEKLY;UNTIL=20180615T140000"  (12:00 UTC → 14:00 Berlin, no Z)
+      #   # => "FREQ=WEEKLY;UNTIL=20180609T190000Z"  (Z added to prevent system-TZ interpretation)
+      #
+      # @example UTC UNTIL gets converted to event timezone, then Z appended
+      #   rrule = "FREQ=WEEKLY;UNTIL=20180609T170000Z"  # 17:00 UTC
+      #   _normalize_rrule_until(rrule, 'Europe/Berlin')  # Event in Berlin (UTC+2)
+      #   # => "FREQ=WEEKLY;UNTIL=20180609T190000Z"  (17:00 UTC → 19:00 Berlin, Z prevents conversion)
       #
       def _normalize_rrule_until(rrule_string, target_timezone)
         # Match UNTIL with UTC time (Z suffix) or with explicit time
@@ -399,10 +429,12 @@ module Icalendar
           timestamp_str = $1
           is_utc = $2 == 'Z'
 
-          # RFC 5545 floating time (no Z): pass through unchanged
-          next "UNTIL=#{timestamp_str}" unless is_utc
+          # RFC 5545 floating time (no Z): pass through unchanged, but add Z to prevent
+          # IceCube from interpreting it in system-TZ
+          next "UNTIL=#{timestamp_str}Z" unless is_utc
 
-          # Parse the timestamp
+          # Already UTC with Z - convert to floating in target timezone but add Z to prevent
+          # IceCube from interpreting it in system-TZ
           year = timestamp_str[0..3].to_i
           month = timestamp_str[4..5].to_i
           day = timestamp_str[6..7].to_i
@@ -410,18 +442,11 @@ module Icalendar
           minute = timestamp_str[11..12].to_i
           second = timestamp_str[13..14].to_i
 
-          # Create Time object (UTC if 'Z', otherwise floating)
-          time_obj = if is_utc
-                       Time.utc(year, month, day, hour, minute, second)
-                     else
-                       Time.new(year, month, day, hour, minute, second, 0) # floating
-                     end
-
-          # Convert to floating time in target timezone
+          time_obj = Time.utc(year, month, day, hour, minute, second)
           floating_until = _to_floating_time(time_obj, target_timezone)
 
-          # Format back to RRULE format (WITHOUT 'Z' - floating time)
-          "UNTIL=#{floating_until.strftime('%Y%m%dT%H%M%S')}"
+          # Format with Z to prevent IceCube system-TZ interpretation
+          "UNTIL=#{floating_until.strftime('%Y%m%dT%H%M%S')}Z"
         end
       end
 
