@@ -505,8 +505,8 @@ module Icalendar
           return _date_to_time_with_zone(date_time_value, timezone)
 
         elsif date_time_value.is_a?(Time)
-          # Preserve Time's timezone by converting to UTC first, then to target timezone
-          return timezone.at(date_time_value.getutc)
+          # Treat Ruby Time as quasi-floating: preserve wall-clock time, embed in the target timezone
+          return _embed_time_preserving_wall_clock(date_time_value, timezone)
 
         elsif date_time_value.respond_to?(:to_time)
           return timezone.at(date_time_value.to_time)
@@ -607,6 +607,44 @@ module Icalendar
         timezone = _extract_explicit_timezone(date_or_time) || timezone_hint || 'UTC'
         _to_floating_time(date_or_time, timezone)
       end
+
+      ##
+      # Embeds a Ruby Time object into a timezone, preserving wall-clock time.
+      #
+      # This treats the Time as "quasi-floating" - we take its wall-clock components
+      # (hour, minute, second) and interpret them in the target timezone, ignoring
+      # the original offset.
+      #
+      # A warning is logged if the Time's original offset doesn't match the target
+      # timezone's offset (indicating potential user confusion about timezones).
+      #
+      # @param [Time] time_value a Ruby Time object
+      # @param [ActiveSupport::TimeZone] timezone the target timezone
+      # @return [ActiveSupport::TimeWithZone] the time embedded in the target timezone
+      # @api private
+      def _embed_time_preserving_wall_clock(time_value, timezone)
+        # Create the result in target timezone with same wall-clock time
+        result = timezone.local(
+          time_value.year,
+          time_value.month,
+          time_value.day,
+          time_value.hour,
+          time_value.min,
+          time_value.sec
+        )
+
+        # Warn if the original offset doesn't match the target timezone
+        if time_value.utc_offset != result.utc_offset
+          Icalendar::Rrule.logger.warn do
+            "[icalendar-rrule] Time offset (#{time_value.utc_offset}s) differs from target timezone " \
+              "#{timezone.name} - forcing to #{result.utc_offset}s"
+          end
+        end
+
+        result
+      end
+
+
       ##
       # Ensures the given `tz` is either an ActiveSupport::TimeZone object or the name of an existing timezone.
       #
@@ -749,6 +787,7 @@ module Icalendar
       #   Should respond to :utc_offset (e.g., Time, DateTime, Icalendar::Values::DateTime).
       # @return [ActiveSupport::TimeZone, nil] an ActiveSupport::TimeZone matching the UTC offset,
       #   or nil if no match is found or an error occurs.
+      # @deprecated makes little sense and can be avoided.
       # @api private
       def _guess_timezone_from_offset(date_time)
         # Extract value from Icalendar::Values::DateTime if needed
