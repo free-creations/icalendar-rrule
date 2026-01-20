@@ -95,12 +95,6 @@ RSpec.context 'when `using Icalendar::Schedulable::scan`' do
     describe 'the scan' do
       let(:scan) { calendar.scan(begin_time, end_time, %i[events]) }
 
-      it 'pretty prints to', skip: 'debugging only' do
-        scan.each do |occurrence|
-          puts "#{occurrence.start_time} -> #{occurrence.end_time}"
-        end
-      end
-
       it 'returns two event-occurrences in the time span' do
         expect(scan.size).to eq(2)
       end
@@ -199,12 +193,6 @@ RSpec.context 'when `using Icalendar::Schedulable::scan`' do
 
       it 'returns one event-occurrences in the time span' do
         expect(scan.size).to eq(1)
-      end
-
-      it 'pretty prints to', skip: 'debugging only' do
-        scan.each do |occurrence|
-          puts "#{occurrence.start_time} -> #{occurrence.end_time}"
-        end
       end
 
       describe 'the first and only event' do

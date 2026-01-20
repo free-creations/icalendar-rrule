@@ -48,11 +48,11 @@ module Icalendar
     NULL_TIME = 0
 
     # the number of seconds in a minute
-    SEC_MIN  = 60
+    SEC_MIN = 60
     # the number of seconds in an hour
     SEC_HOUR = 60 * SEC_MIN
     # the number of seconds in a day
-    SEC_DAY  = 24 * SEC_HOUR
+    SEC_DAY = 24 * SEC_HOUR
     # the number of seconds in a week
     SEC_WEEK = 7 * SEC_DAY
     ##
@@ -218,7 +218,7 @@ module Icalendar
       # @return [Boolean] true if the component is an Event scheduled for an entire day,
       #                   false for tasks or timed events
       def all_day?
-        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        # todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
         return false unless self.is_a?(Icalendar::Event)
 
         _dtstart.is_a?(Icalendar::Values::Date) ||
@@ -239,7 +239,7 @@ module Icalendar
       #
       # @return [Boolean] true if the component has no duration
       def single_timestamp?
-        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        # todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
         return false if start_time.nil? || end_time.nil? # <--- ???? are never nil ????
         # Compare at second precision (ignore potential microsecond differences)
         start_time.to_i == end_time.to_i
@@ -347,7 +347,7 @@ module Icalendar
       # @return [IceCube::Schedule]
       def schedule # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         # Calculate the duration of this base event in seconds
-        duration_seconds = (end_time.to_i - start_time.to_i)  # Integer seconds
+        duration_seconds = (end_time.to_i - start_time.to_i) # Integer seconds
 
         # Create a schedule with start_time and duration
         # Convert to floating Time for IceCube compatibility
@@ -506,7 +506,7 @@ module Icalendar
 
         elsif date_time_value.is_a?(Time)
           # Treat Ruby Time as quasi-floating: preserve wall-clock time, embed in the target timezone
-          return _embed_time_preserving_wall_clock(date_time_value, timezone)
+          return _embed_in_timezone_preserving_wall_clock(date_time_value, timezone)
 
         elsif date_time_value.respond_to?(:to_time)
           return timezone.at(date_time_value.to_time)
@@ -519,6 +519,7 @@ module Icalendar
         # Oops, the given object is unusable, we'll give back the NULL_DATE
         timezone.at(NULL_TIME)
       end
+
       # rubocop:enable Metrics/MethodLength,Metrics/AbcSize, Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
 
       ##
@@ -530,8 +531,6 @@ module Icalendar
         d = date.to_date
         timezone.local(d.year, d.month, d.day)
       end
-
-
 
       ##
       # Converts any time to floating time, CONVERTING to the target timezone first.
@@ -550,11 +549,20 @@ module Icalendar
       #   # UTC: 2018-01-01 15:00 UTC → Berlin: 2018-01-01 16:00 CET
       #   floating = _to_floating_time(utc_time, ActiveSupport::TimeZone['Europe/Berlin'])
       #   # => 2018-01-01 16:00:00 +0000 (floating)
-      def _to_floating_time(date_or_time, target_tz )
+      def _to_floating_time(date_or_time, target_tz)
+
+        if date_or_time.is_a?(Date)
+          return Time.new(date_or_time.year, date_or_time.month, date_or_time.day, 0, 0, 0, 0)
+        end
+
+        if date_or_time.is_a?(Icalendar::Values::Date)
+          return Time.new(date_or_time.year, date_or_time.month, date_or_time.day, 0, 0, 0, 0)
+        end
+
         active_target_tz = _ensure_active_timezone(target_tz)
 
         # Convert to TimeWithZone in the target timezone first
-        time_with_zone = _to_time_with_zone(date_or_time, active_target_tz)
+        time_with_zone = _embed_in_timezone_preserving_moment(date_or_time, active_target_tz)
 
         # Extract wall-clock components and create floating time (offset 0)
         Time.new(
@@ -564,65 +572,36 @@ module Icalendar
           time_with_zone.hour,
           time_with_zone.min,
           time_with_zone.sec,
-          0  # UTC offset 0 = floating time
+          0 # UTC offset 0 = floating time
         )
-      end
-
-      ##
-      # Converts any time representation to "floating time", automatically detecting the timezone.
-      #
-      # Unlike `_to_floating_time`, this method attempts to extract the timezone from the
-      # input object itself before falling back to hints or defaults.
-      #
-      # Timezone resolution order:
-      # 1. Explicit timezone from the input object (TZID parameter, TimeWithZone#time_zone, etc.)
-      # 2. The provided timezone_hint parameter
-      # 3. UTC as last resort
-      #
-      # @param [Object] date_or_time any object representing a time (Icalendar::Values::DateTime,
-      #   ActiveSupport::TimeWithZone, Date, Time, Integer, etc.)
-      # @param [ActiveSupport::TimeZone, String, nil] timezone_hint optional timezone to use
-      #   if the input object has no explicit timezone information.
-      # @return [Time] a Ruby Time object with UTC offset 0 (floating time)
-      # @api private
-      #
-      # @example EXDATE with explicit TZID uses that timezone
-      #   # EXDATE;TZID=America/New_York:20180707T120000
-      #   floating = _to_floating_time_auto(exdate_value)
-      #   # => 2018-07-07 12:00:00 +0000 (floating, preserved NY wall-clock time)
-      #
-      # @example EXDATE in UTC (Zulu) uses timezone_hint for wall-clock interpretation
-      #   # EXDATE:20180707T160000Z (UTC) with hint Europe/Berlin
-      #   floating = _to_floating_time_auto(exdate_value, 'Europe/Berlin')
-      #   # => 2018-07-07 18:00:00 +0000 (floating, converted to Berlin wall-clock time)
-      #
-      # @example Floating EXDATE passes through unchanged
-      #   # EXDATE:20180707T120000 (no Z, no TZID)
-      #   floating = _to_floating_time_auto(exdate_value)
-      #   # => 2018-07-07 12:00:00 +0000 (floating)
-      #
-      # @deprecated Use `_to_floating_time` instead.
-      def _to_floating_time_auto(date_or_time, timezone_hint = nil)
-        # Try to extract timezone from the date_time parameter first
-        timezone = _extract_explicit_timezone(date_or_time) || timezone_hint || 'UTC'
-        _to_floating_time(date_or_time, timezone)
       end
 
       ##
       # Embeds a Ruby Time object into a timezone, preserving wall-clock time.
       #
       # This treats the Time as "quasi-floating" - we take its wall-clock components
-      # (hour, minute, second) and interpret them in the target timezone, ignoring
-      # the original offset.
+      # (year, month, day, hour, minute, second) and interpret them in the target timezone,
+      # ignoring the original offset. The UTC moment will change according to the
+      # timezone offset difference.
       #
       # A warning is logged if the Time's original offset doesn't match the target
       # timezone's offset (indicating potential user confusion about timezones).
+      #
+      # Use this when the Time represents a wall-clock reading (e.g., from user input
+      # or an iCalendar floating time) that should be interpreted in a specific timezone.
+      #
+      # @example
+      #   local_time = Time.new(2026, 1, 15, 12, 0, 0, '+05:00')  # 12:00 somewhere
+      #   berlin = ActiveSupport::TimeZone['Europe/Berlin']
+      #   result = _embed_in_timezone_preserving_wall_clock(local_time, berlin)
+      #   # => 2026-01-15 12:00:00 +0100 (same wall-clock, different moment)
       #
       # @param [Time] time_value a Ruby Time object
       # @param [ActiveSupport::TimeZone] timezone the target timezone
       # @return [ActiveSupport::TimeWithZone] the time embedded in the target timezone
       # @api private
-      def _embed_time_preserving_wall_clock(time_value, timezone)
+      # @see _embed_in_timezone_preserving_moment for the inverse operation
+      def _embed_in_timezone_preserving_wall_clock(time_value, timezone)
         # Create the result in target timezone with same wall-clock time
         result = timezone.local(
           time_value.year,
@@ -644,6 +623,35 @@ module Icalendar
         result
       end
 
+      ##
+      # Embeds a Ruby Time object into a timezone, preserving the UTC moment.
+      #
+      # Converts the Time to the target timezone while keeping the same instant in time.
+      # The wall-clock time will change according to the timezone offset difference.
+      #
+      # Use this when the Time represents a specific moment in time (e.g., from a database
+      # timestamp or API response) that should be displayed in a different timezone.
+      #
+      # @example
+      #   utc_time = Time.utc(2026, 1, 15, 12, 0, 0)  # 12:00 UTC
+      #   berlin = ActiveSupport::TimeZone['Europe/Berlin']
+      #   result = _embed_in_timezone_preserving_moment(utc_time, berlin)
+      #   # => 2026-01-15 13:00:00 +0100 (same moment, different wall-clock)
+      #
+      # @param [Time] time_value a Ruby Time object
+      # @param [ActiveSupport::TimeZone] timezone the target timezone
+      # @return [ActiveSupport::TimeWithZone] the time in the target timezone
+      # @api private
+      # @see _embed_time_preserving_wall_clock for the inverse operation
+      def _embed_in_timezone_preserving_moment(time_value, timezone)
+        if time_value.respond_to?(:to_time)
+          timezone.at(time_value.to_time.getutc)
+        elsif time_value.is_a?(Integer)
+          timezone.at(time_value)
+        else
+          throw ArgumentError, "Unexpected time value: #{time_value}"
+        end
+      end
 
       ##
       # Ensures the given `tz` is either an ActiveSupport::TimeZone object or the name of an existing timezone.
@@ -692,7 +700,7 @@ module Icalendar
       # Determine the timezone that shall be used for `start_time` this component
       # @return [ActiveSupport::TimeZone] the unique timezone used for the start_time of this component
       def _timezone_for_start
-        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        # todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
         start_time.time_zone
       end
 
@@ -700,14 +708,14 @@ module Icalendar
       # Determine the timezone that shall be used for `end_time` this component
       # @return [ActiveSupport::TimeZone] the unique timezone used for the end_time of this component
       def _timezone_for_end
-        #todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
+        # todo: determine timezone purely from input parameters (i.e from _dtstart, _dtend, _due)
         end_time.time_zone
       end
 
       ##
       # Try to determine this components time zone by inspecting the parents calendar.
       # @return[ActiveSupport::TimeZone, nil] the first valid timezone found in the
-      #    parent calender or nil if none could be found.
+      #    parent calendar or nil if none could be found.
       #
       # rubocop:disable Metrics/CyclomaticComplexity
       def _extract_calendar_timezone
@@ -725,6 +733,7 @@ module Icalendar
       rescue StandardError
         nil
       end
+
       # rubocop:enable Metrics/CyclomaticComplexity
 
       ##
@@ -743,9 +752,9 @@ module Icalendar
       # @return [ActiveSupport::TimeZone, nil] the explicitly set timezone, or nil if none found.
       # @api private
       def _extract_explicit_timezone(date_time)
-        timezone ||= _extract_ical_time_zone(date_time)      # try with ical TZID parameter (most specific)
-        timezone ||= _extract_act_sup_timezone(date_time)    # is the given value already ActiveSupport::TimeWithZone?
-        timezone || _extract_value_time_zone(date_time)      # is the ical.value of type ActiveSupport::TimeWithZone?
+        timezone ||= _extract_ical_time_zone(date_time) # try with ical TZID parameter (most specific)
+        timezone ||= _extract_act_sup_timezone(date_time) # is the given value already ActiveSupport::TimeWithZone?
+        timezone || _extract_value_time_zone(date_time) # is the ical.value of type ActiveSupport::TimeWithZone?
       end
 
       ##
@@ -890,7 +899,6 @@ module Icalendar
       rescue StandardError
         nil
       end
-
 
     end
   end
