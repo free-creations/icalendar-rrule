@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Runs at 04:17 on the 13th of every month to avoid the "1st of the month" peak
+    - cron: '17 4 13 * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Testing against 3.1, 3.4 and the latest stable release (currently 4.0)
+        ruby-version: ['3.1', '3.4', 'ruby']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true # Runs 'bundle install' and caches gems automatically
+
+      - name: Run specs
+        run: bundle exec rspec
