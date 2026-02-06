@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-02-06
+
+### Changed
+- **BREAKING**: Minimum Ruby version increased to 3.2 (required by ActiveSupport 8.1)
+- Updated timezone handling for better DST stability
+- Added GitHub Actions CI pipeline
+
+
 ## [0.2.0] - 2025-12-24
 
 ### Added

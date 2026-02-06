@@ -28,7 +28,7 @@ Gem::Specification.new do |gem_spec|
   gem_spec.executables   = gem_spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   gem_spec.require_paths = ['lib']
 
-  gem_spec.required_ruby_version = '>= 3.1'
+  gem_spec.required_ruby_version = '>= 3.2'
 
   gem_spec.add_dependency 'activesupport', '>= 8.0'
   gem_spec.add_dependency 'icalendar', '>= 2.4'
